@@ -36,6 +36,25 @@ const apiService = {
       throw error; 
     }
   },
+
+  async uploadPlaylist(data: FormData | { playlistUrl: string }): Promise<void> {
+    try {
+      const options: RequestInit = {
+        method: 'POST',
+        body: data instanceof FormData ? data : JSON.stringify(data),
+        headers: data instanceof FormData ? {} : { 'Content-Type': 'application/json' },
+      };
+
+      const response = await fetch(`${API_BASE_URL}/api/playlist`, options);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error uploading playlist:', error);
+      throw error;
+    }
+  },
 };
 
 export default apiService;

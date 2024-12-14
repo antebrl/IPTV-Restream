@@ -3,6 +3,7 @@ import { Plus, Trash2, X } from 'lucide-react';
 import socketService from '../../services/SocketService';
 import { CustomHeader, Channel } from '../../types';
 import CustomHeaderInput from './CustomHeaderInput';
+import apiService from '../../services/ApiService';
 
 interface ChannelModalProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ function ChannelModal({ isOpen, onClose, channel }: ChannelModalProps) {
   const [restream, setRestream] = useState(false);
   const [headers, setHeaders] = useState<CustomHeader[]>([]);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const [playlistFile, setPlaylistFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (channel) {
@@ -36,7 +39,7 @@ function ChannelModal({ isOpen, onClose, channel }: ChannelModalProps) {
     }
   }, [channel]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !url.trim()) return;
 
@@ -50,6 +53,16 @@ function ChannelModal({ isOpen, onClose, channel }: ChannelModalProps) {
         restream,
         JSON.stringify(headers)
       );
+    }
+
+    if (playlistUrl.trim()) {
+      await apiService.uploadPlaylist({ playlistUrl: playlistUrl.trim() });
+    }
+
+    if (playlistFile) {
+      const formData = new FormData();
+      formData.append('playlistFile', playlistFile);
+      await apiService.uploadPlaylist(formData);
     }
 
     onClose();
@@ -85,6 +98,16 @@ function ChannelModal({ isOpen, onClose, channel }: ChannelModalProps) {
     const newHeaders = [...headers];
     newHeaders[index] = { ...newHeaders[index], [field]: value };
     setHeaders(newHeaders);
+  };
+
+  const handlePlaylistUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPlaylistUrl(e.target.value);
+  };
+
+  const handlePlaylistFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      setPlaylistFile(e.target.files[0]);
+    }
   };
 
   if (!isOpen) return null;
@@ -208,6 +231,33 @@ function ChannelModal({ isOpen, onClose, channel }: ChannelModalProps) {
               </div>
             </div>
           )}
+
+          <div>
+            <label htmlFor="playlistUrl" className="block text-sm font-medium mb-1">
+              M3U Playlist URL
+            </label>
+            <input
+              type="url"
+              id="playlistUrl"
+              value={playlistUrl}
+              onChange={handlePlaylistUrlChange}
+              className="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Enter M3U playlist URL"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="playlistFile" className="block text-sm font-medium mb-1">
+              M3U Playlist File
+            </label>
+            <input
+              type="file"
+              id="playlistFile"
+              onChange={handlePlaylistFileChange}
+              className="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              accept=".m3u"
+            />
+          </div>
 
           <div className="flex justify-end space-x-3">
             {isEditMode && (

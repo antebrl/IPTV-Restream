@@ -1,5 +1,7 @@
 const streamController = require('./streaming/StreamController');
 const Channel = require('../models/Channel');
+const fs = require('fs');
+const m3uParser = require('m3u8-parser');
 
 class ChannelService {
     constructor() {
@@ -111,6 +113,28 @@ class ChannelService {
         }
 
         return channel;
+    }
+
+    addChannelsFromPlaylist(playlistUrl) {
+        const playlistContent = fs.readFileSync(playlistUrl, 'utf8');
+        const parser = new m3uParser.Parser();
+        parser.push(playlistContent);
+        parser.end();
+
+        const parsedPlaylist = parser.manifest;
+        const channels = parsedPlaylist.segments.map(segment => ({
+            name: segment.title,
+            url: segment.uri,
+            avatar: '',
+            restream: false,
+            headersJson: '[]'
+        }));
+
+        channels.forEach(channel => {
+            this.addChannel(channel.name, channel.url, channel.avatar, channel.restream, channel.headersJson);
+        });
+
+        return channels;
     }
 }
 
