@@ -9,9 +9,10 @@ import { ModeTooltipContent, Tooltip } from '../Tooltip';
 interface ChannelModalProps {
   onClose: () => void;
   channel?: Channel | null;
+  isAdmin?: boolean;
 }
 
-function ChannelModal({ onClose, channel }: ChannelModalProps) {
+function ChannelModal({ onClose, channel, isAdmin = false }: ChannelModalProps) {
   const [type, setType] = useState<'channel' | 'playlist'>('playlist');
   const [isEditMode, setIsEditMode] = useState(false);
   const [inputMethod, setInputMethod] = useState<'url' | 'text'>('url');
@@ -100,7 +101,8 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
         url.trim(),
         avatar.trim() || 'https://via.placeholder.com/64',
         mode,
-        JSON.stringify(headers)
+        JSON.stringify(headers),
+        isAdmin
       );
     } else if (type === 'playlist') {
       if (inputMethod === 'url' && !playlistUrl.trim()) return;
@@ -111,7 +113,8 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
         playlistName.trim(),
         mode,
         playlistUpdate,
-        JSON.stringify(headers)
+        JSON.stringify(headers),
+        isAdmin
       );
     }
 
@@ -132,7 +135,7 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
         avatar: avatar.trim() || 'https://via.placeholder.com/64',
         mode: mode,
         headers: headers,
-      });
+      }, isAdmin);
     } else if (type === 'playlist') {
       const newPlaylist = inputMethod === 'url' ? playlistUrl.trim() : playlistText.trim();
       socketService.updatePlaylist(channel!.playlist, {
@@ -141,7 +144,7 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
         playlistUpdate: playlistUpdate,
         mode: mode,
         headers: headers,
-      });
+      }, isAdmin);
     }
 
     addToast({
@@ -156,9 +159,9 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
   const handleDelete = () => {
     if (channel) {
       if (type === 'channel') {
-        socketService.deleteChannel(channel.id);
+        socketService.deleteChannel(channel.id, isAdmin);
       } else if (type === 'playlist') {
-        socketService.deletePlaylist(channel.playlist);
+        socketService.deletePlaylist(channel.playlist, isAdmin);
       }
     }
     addToast({
@@ -221,9 +224,11 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
                 />
               </div>
               <div>
-                <label htmlFor="url" className="block text-sm font-medium mb-1">
-                  Stream URL
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="url" className="block text-sm font-medium">
+                    Stream URL
+                  </label>
+                </div>
                 <input
                   type="url"
                   id="url"
@@ -443,14 +448,16 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
                 <label className="block text-sm font-medium">
                   Custom Headers
                 </label>
-                <button
-                  type="button"
-                  onClick={addHeader}
-                  className="flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Header</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={addHeader}
+                    className="flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Header</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 {headers && headers.map((header, index) => (

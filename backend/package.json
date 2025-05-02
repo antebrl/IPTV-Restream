@@ -20,9 +20,11 @@
   "homepage": "https://github.com/antebrl/iptv-restream#readme",
   "dependencies": {
     "child_process": "^1.0.2",
+    "cookie-parser": "^1.4.6",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "iptv-playlist-parser": "^0.13.0",
+    "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
     "request": "^2.88.2",
     "socket.io": "^4.8.1"
