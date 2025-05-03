@@ -1,6 +1,7 @@
 import { X, Copy, Tv2 } from 'lucide-react';
 import { useContext } from 'react';
 import { ToastContext } from './notifications/ToastContext';
+import { useAdmin } from './admin/AdminContext';
 
 interface TvPlaylistModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface TvPlaylistModalProps {
 }
 
 function TvPlaylistModal({ isOpen, onClose }: TvPlaylistModalProps) {
+  const { isAdmin  } = useAdmin();
   const { addToast } = useContext(ToastContext);
   const playlistUrl = `${import.meta.env.VITE_BACKEND_URL || window.location.origin}/api/channels/playlist`;
 
@@ -66,6 +68,22 @@ function TvPlaylistModal({ isOpen, onClose }: TvPlaylistModalProps) {
           <p className="text-sm text-gray-400">
             Use this playlist in any other IPTV player. If you have problems, check if the base-url in the playlist is correctly pointing to the backend. If not, please set BACKEND_URL in the docker-compose.yml
           </p>
+
+          {isAdmin && (
+            <div className="mt-6 border-t border-gray-700 pt-4">
+              <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-medium">Admin Information</h3>
+              </div>
+              
+              <div className="bg-gray-900 rounded-lg p-4">
+                <p className="text-sm text-gray-300">
+                  This playlist contains all stream URLs. You can share a link to the 
+                  application with other users, and they will be able to watch the streams 
+                  together with you.
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
