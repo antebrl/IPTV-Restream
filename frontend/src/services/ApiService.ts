@@ -4,12 +4,12 @@ type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 const apiService = {
   /**
-   * Execute API request
+   * Execute API request with JWT auth token (if available)
    * @param path - Path (e.g. "/channels/")
    * @param method - HTTP-Method (GET, POST, etc.)
    * @param api_url - The API URL (default: API_BASE_URL + '/api')
    * @param body - The request body (e.g. POST)
-   * @returns Ein Promise with the parsed JSON response to class T
+   * @returns A Promise with the parsed JSON response to class T
    */
   async request<T>(path: string, method: HttpMethod = 'GET', api_url: string = API_BASE_URL + '/api', body?: unknown): Promise<T> {
     try {
@@ -17,8 +17,14 @@ const apiService = {
         method,
         headers: {
           'Content-Type': 'application/json',
-        },
+        } as Record<string, string>,
       };
+
+      // Add Authorization header if JWT token exists
+      const token = localStorage.getItem('admin_token');
+      if (token) {
+        (options.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
+      }
 
       if (body) {
         options.body = JSON.stringify(body);
