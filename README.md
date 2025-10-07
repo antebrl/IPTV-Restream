@@ -1,5 +1,4 @@
 > [!NOTE]
-> Thank you for all the amazing feedback and ideas! One of the most requested features has been a **hosted solution** for non-technical users.
 >
 > #### NEW VERSION
 > 🎉 I'm currently working on a fully hosted version – no setup required and **completely FREE**!   
@@ -14,16 +13,6 @@
 
 # IPTV StreamHub
  A simple IPTV `restream` and `synchronization` (watch2gether) application with `web` frontend. Share your iptv playlist and watch it together with your friends.
-
-Actively in devlopment and open for your ideas! <br>
-Easily test it locally using Docker Compose!
-
-> [!IMPORTANT]
-> If you're using an **Xtream Codes** playlist (format: `/get.php?username=xxx&password=xxx&type=xxx&output=xxx`), try the following options:
-> - Use **proxy mode** with HLS output: Use `&type=m3u_plus&output=hls` in your playlist URL.
-> - Use **restream mode** with MPEG-TS output: Use `&type=m3u_plus&output=ts` to your playlist URL.
->
-> If your playlist is a plain HTTP link or has CORS issues, you must use **proxy** or **restream mode** to ensure compatibility in the web.
 
 ## 💡Use Cases
 - [x] IPTV Web player supporting multiple playlists at once.
@@ -58,8 +47,16 @@ Open http://localhost
 
 > [!IMPORTANT]  
 > If a channel/playlist won't work, please try with `proxy` or `restream` mode. This fixes most of the problems! See also [Channel Mode](#channel-mode).
+>
+> If you're using an **Xtream Codes** playlist (format: `/get.php?username=xxx&password=xxx&type=xxx&output=xxx`), try the following options:
+> - Use **proxy mode** with HLS output: Use `&type=m3u_plus&output=hls` in your playlist URL.
+> - Use **restream mode** with MPEG-TS output: Use `&type=m3u_plus&output=ts` to your playlist URL.
+>
+> If your playlist is a plain HTTP link or has CORS issues, you must use **proxy** or **restream mode** to ensure compatibility in the web.
 
-There is also [documentation for advanced deployment](/deployment/README.md):
+
+There is also [documentation for ADVANCED DEPLOYMENT](/deployment/README.md):
+- Configuration options (Admin mode).
 - Deploy from container registry and without cloning and building.
 - Deploy together with nginx proxy manager for automatic ssl handling.
 
@@ -131,6 +128,10 @@ Is it possible to run components seperately, if I only need the frontend OR back
 > If you only need the **synchronization** functionality, you may only run the [frontend](/frontend/README.md).
 >
 > Be aware, that this'll require additional configuration/adaption and won't be officially supported. It is recommended to [run the whole project as once](#run-with-docker-preferred).
+---
+Is there a option to limit access of channel management?
+
+> Yes, you can enable [**Admin Mode**](/deployment/README.md#admin-mode) in the configuration to restrict channel management to authenticated administrators only.
 
 ## Contribute & Contact
 Feel free to open discussions and issues for any type of requests. Don't hesitate to contact me, if you have any problems with the setup.

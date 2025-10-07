@@ -100,7 +100,7 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
         url.trim(),
         avatar.trim() || 'https://via.placeholder.com/64',
         mode,
-        JSON.stringify(headers)
+        JSON.stringify(headers),
       );
     } else if (type === 'playlist') {
       if (inputMethod === 'url' && !playlistUrl.trim()) return;
@@ -111,7 +111,7 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
         playlistName.trim(),
         mode,
         playlistUpdate,
-        JSON.stringify(headers)
+        JSON.stringify(headers),
       );
     }
 
@@ -221,9 +221,11 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
                 />
               </div>
               <div>
-                <label htmlFor="url" className="block text-sm font-medium mb-1">
-                  Stream URL
-                </label>
+                <div className="flex justify-between items-center mb-1">
+                  <label htmlFor="url" className="block text-sm font-medium">
+                    Stream URL
+                  </label>
+                </div>
                 <input
                   type="url"
                   id="url"
@@ -443,14 +445,16 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
                 <label className="block text-sm font-medium">
                   Custom Headers
                 </label>
-                <button
-                  type="button"
-                  onClick={addHeader}
-                  className="flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Header</span>
-                </button>
+                <div className="flex items-center space-x-2">
+                  <button
+                    type="button"
+                    onClick={addHeader}
+                    className="flex items-center space-x-1 text-sm text-blue-400 hover:text-blue-300"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Header</span>
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 {headers && headers.map((header, index) => (
