@@ -1,7 +1,8 @@
-import React, { useContext, useEffect, useRef } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
 import { Channel, ChannelMode } from '../types';
 import { ToastContext } from './notifications/ToastContext';
+import socketService from '../services/SocketService';
 
 interface VideoPlayerProps {
   channel: Channel | null;
@@ -11,10 +12,63 @@ interface VideoPlayerProps {
 function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const [streamPaused, setStreamPaused] = useState(false);
   const { addToast, removeToast, clearToasts, editToast } = useContext(ToastContext);
+
+  // Listen for stream status changes
+  useEffect(() => {
+    const handleStreamStatusChange = (data: { status: string, channelId: number }) => {
+      if (channel && data.channelId === channel.id) {
+        if (data.status === 'stopped') {
+          setStreamPaused(true);
+          // Show toast notification
+          addToast({
+            type: 'info',
+            title: 'Stream paused',
+            message: 'Stream paused due to inactivity. Will resume automatically when viewers return.',
+            duration: 5000,
+          });
+        } else if (data.status === 'started') {
+          setStreamPaused(false);
+          // Show toast notification
+          addToast({
+            type: 'success',
+            title: 'Stream resumed',
+            message: 'Stream is now active.',
+            duration: 5000,
+          });
+          
+          // Reload the player
+          if (hlsRef.current) {
+            const videoElement = videoRef.current;
+            if (videoElement && channel) {
+              const sourceLinks: Record<ChannelMode, string> = {
+                direct: channel.url,
+                proxy: import.meta.env.VITE_BACKEND_URL + '/proxy/channel',
+                restream: import.meta.env.VITE_BACKEND_URL + '/streams/' + channel.id + "/" + channel.id + ".m3u8",
+              };
+              
+              // Give the backend a moment to start the stream
+              setTimeout(() => {
+                hlsRef.current?.loadSource(sourceLinks[channel.mode]);
+                hlsRef.current?.startLoad();
+              }, 2000);
+            }
+          }
+        }
+      }
+    };
+
+    socketService.subscribeToEvent('stream-status-changed', handleStreamStatusChange);
+
+    return () => {
+      socketService.unsubscribeFromEvent('stream-status-changed', handleStreamStatusChange);
+    };
+  }, [channel]);
 
   useEffect(() => {
     if (!videoRef.current || !channel?.url) return;
+    
     const video = videoRef.current;
 
     if (Hls.isSupported()) {
@@ -53,9 +107,8 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
 
       const sourceLinks: Record<ChannelMode, string> = {
         direct: channel.url,
-        //TODO: needs update for multi-channel streaming
         proxy: import.meta.env.VITE_BACKEND_URL + '/proxy/channel', 
-        restream: import.meta.env.VITE_BACKEND_URL + '/streams/' + channel.id + "/" + channel.id + ".m3u8", //e.g. http://backend:3000/streams/1/1.m3u8
+        restream: import.meta.env.VITE_BACKEND_URL + '/streams/' + channel.id + "/" + channel.id + ".m3u8", 
       };    
 
       hlsRef.current = hls;
@@ -148,11 +201,9 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         }
         const timeDiff = (now - newFrag.programDateTime) / 1000;
         const videoDiff = newFrag.end - video.currentTime;
-        //console.log("Time Diff: ", timeDiff, "Video Diff: ", videoDiff);
         const delay = timeDiff + videoDiff;
         
         const targetDelay = channel.mode == 'restream' ? import.meta.env.VITE_STREAM_DELAY : import.meta.env.VITE_STREAM_PROXY_DELAY;
-       // console.log("Delay: ", delay, "Target Delay: ", targetDelay);
 
         const deviation = delay - targetDelay;
 
@@ -160,21 +211,6 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
           video.currentTime += deviation;
           video.playbackRate = 1.0;
           console.log("Significant deviation detected. Adjusting current time.");
-
-          // TODO
-          // console.log("New Time: ", video.currentTime, "New Frag: ", newFrag.end);
-          // if(video.paused) {
-          //   console.warn("[Synchronization Issue] Video stopped. Switch to Restream Mode for this channel");
-          //   deviationErrorCount++;
-          //   if(deviationErrorCount > 2) {
-          //     addToast({
-          //       type: 'error',
-          //       title: 'Synchronization Error',
-          //       message: `Having problems synchronizing playback for the channel in mode: ${channel.mode}. Try to change to restream mode or turn off synchronization.`,
-          //       duration: 5000,
-          //     });
-          //   }
-          // }
         } else if (Math.abs(deviation) > tolerance) {
           const adjustmentFactor = import.meta.env.VITE_SYNCHRONIZATION_ADJUSTMENT || 0.06;
           const speedAdjustment = 1 +  Math.sign(deviation) * Math.min(Math.abs(adjustmentFactor * deviation), import.meta.env.VITE_SYNCHRONIZATION_MAX_ADJUSTMENT || 0.16);
@@ -186,7 +222,6 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
 
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-
           console.error('HLS error:', data);
 
           if (toastStartId) {
@@ -206,7 +241,6 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
             duration: 5000,
           });
           return;
-          
         }
       });
     }
@@ -227,6 +261,31 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
       videoRef.current.play();
     }
   };
+
+  // Display a message when stream is paused due to inactivity
+  if (streamPaused && channel?.mode === 'restream') {
+    return (
+      <div className="relative bg-gray-800 rounded-lg overflow-hidden">
+        <div className="w-full aspect-video bg-black flex items-center justify-center flex-col">
+          <img 
+            src={channel.avatar} 
+            alt="Stream paused" 
+            className="w-24 h-24 mb-4 opacity-50"
+          />
+          <h3 className="text-xl text-gray-400">Stream paused</h3>
+          <p className="text-gray-500 mt-2">Streaming will resume automatically when viewers return</p>
+        </div>
+        <div className="flex items-center p-4 bg-gray-900 text-white">
+          <img 
+            src={channel.avatar} 
+            alt={`${channel.name} avatar`} 
+            className="w-10 h-10 object-contain mr-3" 
+          />
+          <span className="font-medium">{channel.name}</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative bg-gray-800 rounded-lg overflow-hidden">

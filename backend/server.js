@@ -62,9 +62,7 @@ app.use('/proxy', proxyRouter);
 const PORT = 5000;
 const server = app.listen(PORT, async () => {
   console.log(`Server listening on Port ${PORT}`);
-  if (ChannelService.getCurrentChannel().restream()) {
-    await streamController.start(ChannelService.getCurrentChannel());
-  }
+  // Don't automatically start streaming - wait for viewers to connect
   PlaylistUpdater.startScheduler();
   PlaylistUpdater.registerChannelsPlaylist(ChannelService.getChannels());
 });
@@ -88,17 +86,39 @@ const connectedUsers = {};
 io.on('connection', socket => {
   console.log('New client connected');
 
+  // Handle viewer connection - start streaming if first viewer
+  ChannelService.viewerConnected().then(streamStarted => {
+    if (streamStarted) {
+      // Notify all clients that streaming has started
+      io.emit('stream-status-changed', {
+        status: 'started',
+        channelId: ChannelService.getCurrentChannel().id
+      });
+    }
+  });
+
   socket.on('new-user', userId => {
     connectedUsers[socket.id] = userId;
     socket.broadcast.emit('user-connected', userId);
-  })
+  });
 
   socket.on('disconnect', () => {
+    // Handle viewer disconnection - stop streaming if no viewers
+    ChannelService.viewerDisconnected().then(streamStopped => {
+      if (streamStopped) {
+        // Notify all clients that streaming has stopped
+        io.emit('stream-status-changed', {
+          status: 'stopped',
+          channelId: ChannelService.getCurrentChannel().id
+        });
+      }
+    });
+
     socket.broadcast.emit('user-disconnected', connectedUsers[socket.id]);
     delete connectedUsers[socket.id];
-  })
+  });
 
   ChannelSocketHandler(io, socket);
   PlaylistSocketHandler(io, socket);
   ChatSocketHandler(io, socket);
-})
+});
