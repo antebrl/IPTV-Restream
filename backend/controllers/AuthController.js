@@ -12,6 +12,13 @@ module.exports = {
 
     const { password } = req.body;
 
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required",
+      });
+    }
+
     if (authService.verifyAdminPassword(password)) {
       const token = authService.generateAdminToken();
 
@@ -35,6 +42,12 @@ module.exports = {
   },
 
   verifyToken(req, res, next) {
+    // If admin mode is disabled, allow all requests (skip authentication)
+    if (!authService.isAdminEnabled()) {
+      req.user = { isAdmin: false };
+      return next();
+    }
+
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
