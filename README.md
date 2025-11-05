@@ -97,6 +97,51 @@ The stream requests are proxied through the backend. Allows to set custom header
 #### `Restream`
 The backend service caches the source stream (with ffmpeg) and restreams it. Can help with hard device restrictions of your provider or synchroization problems (when your iptv channels have no programDateTime). But it can lead to longer initial loading times and performance issues after time.
 
+### GPU Acceleration (NVIDIA)
+
+For improved performance in restream mode, you can enable NVIDIA GPU acceleration. This uses hardware encoding/decoding instead of CPU, significantly reducing resource usage and improving stream quality.
+
+**Prerequisites:**
+- NVIDIA GPU with NVENC/NVDEC support
+- NVIDIA drivers installed on the host system
+- Docker with NVIDIA Container Runtime (`nvidia-docker2`) installed
+
+**To enable GPU acceleration:**
+
+1. **Install NVIDIA Container Runtime** on your host system:
+   ```bash
+   # Ubuntu/Debian
+   distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+   curl -s -L https://nvidia.github.io/nvidia-docker/gpgkey | sudo apt-key add -
+   curl -s -L https://nvidia.github.io/nvidia-docker/$distribution/nvidia-docker.list | sudo tee /etc/apt/sources.list.d/nvidia-docker.list
+   sudo apt-get update && sudo apt-get install -y nvidia-docker2
+   sudo systemctl restart docker
+   ```
+
+2. **Edit `docker-compose.yml`** and uncomment the GPU configuration:
+   ```yaml
+   environment:
+     USE_GPU: "true"
+     GPU_DECODER: "h264_cuvid"  # Options: h264_cuvid, hevc_cuvid, mpeg2_cuvid
+     GPU_ENCODER: "h264_nvenc"  # Options: h264_nvenc, hevc_nvenc
+   
+   deploy:
+     resources:
+       reservations:
+         devices:
+           - driver: nvidia
+             count: 1
+             capabilities: [gpu]
+   ```
+
+3. **Restart the containers:**
+   ```bash
+   docker compose down
+   docker compose up -d
+   ```
+
+**Note:** The default Debian ffmpeg package may have limited GPU codec support. For full NVIDIA GPU support, you may need to use a custom ffmpeg build with `--enable-cuda-nvcc --enable-cuvid --enable-nvenc` flags or use a pre-built Docker image with GPU-enabled ffmpeg.
+
 ## FAQ & Common Mistakes
 
 Which streaming mode should I choose for the channel?
