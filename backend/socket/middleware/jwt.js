@@ -1,7 +1,4 @@
-const jwt = require('jsonwebtoken');
-require('dotenv').config();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'streamhub-jwt-secret';
+const authService = require("../../services/auth/AuthService");
 
 /**
  * Socket.io middleware to authenticate users via JWT token
@@ -16,18 +13,11 @@ function socketAuthMiddleware(socket, next) {
     return next();
   }
 
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    
-    // Attach the decoded user info to the socket for use in handlers
-    socket.user = decoded;
-    
-    return next();
-  } catch (error) {
-    // If token is invalid, connect without admin privileges
-    socket.user = { isAdmin: false };
-    return next();
-  }
+  const decoded = authService.verifyToken(token);
+
+  // Attach the decoded user info (or default non-admin) to the socket
+  socket.user = decoded || { isAdmin: false };
+  return next();
 }
 
 module.exports = socketAuthMiddleware;

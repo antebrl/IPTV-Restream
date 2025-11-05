@@ -9,10 +9,9 @@ import { ModeTooltipContent, Tooltip } from '../Tooltip';
 interface ChannelModalProps {
   onClose: () => void;
   channel?: Channel | null;
-  isAdmin?: boolean;
 }
 
-function ChannelModal({ onClose, channel, isAdmin = false }: ChannelModalProps) {
+function ChannelModal({ onClose, channel }: ChannelModalProps) {
   const [type, setType] = useState<'channel' | 'playlist'>('playlist');
   const [isEditMode, setIsEditMode] = useState(false);
   const [inputMethod, setInputMethod] = useState<'url' | 'text'>('url');
@@ -102,7 +101,6 @@ function ChannelModal({ onClose, channel, isAdmin = false }: ChannelModalProps) 
         avatar.trim() || 'https://via.placeholder.com/64',
         mode,
         JSON.stringify(headers),
-        isAdmin
       );
     } else if (type === 'playlist') {
       if (inputMethod === 'url' && !playlistUrl.trim()) return;
@@ -114,7 +112,6 @@ function ChannelModal({ onClose, channel, isAdmin = false }: ChannelModalProps) 
         mode,
         playlistUpdate,
         JSON.stringify(headers),
-        isAdmin
       );
     }
 
@@ -135,7 +132,7 @@ function ChannelModal({ onClose, channel, isAdmin = false }: ChannelModalProps) 
         avatar: avatar.trim() || 'https://via.placeholder.com/64',
         mode: mode,
         headers: headers,
-      }, isAdmin);
+      });
     } else if (type === 'playlist') {
       const newPlaylist = inputMethod === 'url' ? playlistUrl.trim() : playlistText.trim();
       socketService.updatePlaylist(channel!.playlist, {
@@ -144,7 +141,7 @@ function ChannelModal({ onClose, channel, isAdmin = false }: ChannelModalProps) 
         playlistUpdate: playlistUpdate,
         mode: mode,
         headers: headers,
-      }, isAdmin);
+      });
     }
 
     addToast({
@@ -159,9 +156,9 @@ function ChannelModal({ onClose, channel, isAdmin = false }: ChannelModalProps) 
   const handleDelete = () => {
     if (channel) {
       if (type === 'channel') {
-        socketService.deleteChannel(channel.id, isAdmin);
+        socketService.deleteChannel(channel.id);
       } else if (type === 'playlist') {
-        socketService.deletePlaylist(channel.playlist, isAdmin);
+        socketService.deletePlaylist(channel.playlist);
       }
     }
     addToast({

@@ -1,4 +1,14 @@
-# Deployment
+# Advanced Deployment
+
+## Configuration Options
+
+### Admin Mode
+Admin Mode restricts channel management to authenticated administrators only.
+
+**Configuration (in `docker-compose.yml` > iptv_restream_backend):**
+- `ADMIN_ENABLED`: Enable admin mode (`true` or `false` [default]).
+- `ADMIN_PASSWORD`: Set a secure password for admin login (required if admin mode is enabled).
+- `CHANNEL_SELECTION_REQUIRES_ADMIN`: If set to `true`, only admins can switch the currently watched channel.
 
 ## Docker 
 

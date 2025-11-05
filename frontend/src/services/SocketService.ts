@@ -146,7 +146,6 @@ class SocketService {
     avatar: string,
     mode: ChannelMode,
     headersJson: string,
-    isAdmin: boolean = false
   ) {
     if (!this.socket || !this.socket.connected) {
       this.connect();
@@ -173,7 +172,7 @@ class SocketService {
   }
 
   // Delete channel
-  deleteChannel(id: number, isAdmin: boolean = false) {
+  deleteChannel(id: number) {
     if (!this.socket || !this.socket.connected) {
       this.connect();
 
@@ -186,7 +185,7 @@ class SocketService {
   }
 
   // Update channel
-  updateChannel(id: number, updatedAttributes: any, isAdmin: boolean = false) {
+  updateChannel(id: number, updatedAttributes: any) {
     if (!this.socket || !this.socket.connected) {
       this.connect();
 
@@ -205,7 +204,6 @@ class SocketService {
     mode: ChannelMode,
     playlistUpdate: boolean,
     headers: string,
-    isAdmin: boolean = false
   ) {
     if (!this.socket || !this.socket.connected) {
       this.connect();
@@ -228,7 +226,6 @@ class SocketService {
   updatePlaylist(
     playlist: string,
     updatedAttributes: any,
-    isAdmin: boolean = false
   ) {
     if (!this.socket || !this.socket.connected) {
       this.connect();
@@ -242,7 +239,7 @@ class SocketService {
   }
 
   // Delete playlist
-  deletePlaylist(playlist: string, isAdmin: boolean = false) {
+  deletePlaylist(playlist: string) {
     if (!this.socket || !this.socket.connected) {
       this.connect();
 

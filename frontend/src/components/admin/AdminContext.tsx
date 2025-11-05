@@ -9,10 +9,12 @@ import { jwtDecode } from 'jwt-decode';
 import socketService from '../../services/SocketService';
 
 interface AdminContextType {
-  isAdmin: boolean;
+  isAdmin: boolean | null;
   setIsAdmin: (value: boolean) => void;
   isAdminEnabled: boolean;
   setIsAdminEnabled: (value: boolean) => void;
+  channelSelectRequiresAdmin: boolean;
+  setChannelSelectRequiresAdmin: (value: boolean) => void;
   adminToken: string | null;
 }
 
@@ -21,6 +23,8 @@ const AdminContext = createContext<AdminContextType>({
   setIsAdmin: () => {},
   isAdminEnabled: false,
   setIsAdminEnabled: () => {},
+  channelSelectRequiresAdmin: false,
+  setChannelSelectRequiresAdmin: () => {},
   adminToken: null,
 });
 
@@ -42,21 +46,22 @@ const isTokenValid = (token: string): boolean => {
 };
 
 export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [isAdminEnabled, setIsAdminEnabled] = useState(false);
+  const [channelSelectRequiresAdmin, setChannelSelectRequiresAdmin] = useState(false);
   const [adminToken, setAdminToken] = useState<string | null>(null);
 
   // Effect to handle token changes
   useEffect(() => {
     // When admin status changes, update socket connection
-    if (isAdmin) {
+    if (isAdmin === true) {
       // Small delay to ensure token is saved before reconnecting
       setTimeout(() => {
         socketService.updateAuthToken();
       }, 100);
-    } else {
+    } else if (isAdmin === false) {
       // Reset token and reconnect
-      localStorage.removeItem('admin_token');
+      localStorage.removeItem("admin_token");
       setAdminToken(null);
       socketService.updateAuthToken();
     }
@@ -72,7 +77,7 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
       setAdminToken(token);
     } else if (token) {
       // Clear invalid token
-      localStorage.removeItem('admin_token');
+      setIsAdmin(false);
     }
   }, []);
 
@@ -83,6 +88,8 @@ export const AdminProvider: React.FC<AdminProviderProps> = ({ children }) => {
         setIsAdmin,
         isAdminEnabled,
         setIsAdminEnabled,
+        channelSelectRequiresAdmin,
+        setChannelSelectRequiresAdmin,
         adminToken,
       }}
     >

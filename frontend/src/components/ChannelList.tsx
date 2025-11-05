@@ -1,15 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { Channel } from "../types";
 import socketService from "../services/SocketService";
-import { Lock } from "lucide-react";
 
 interface ChannelListProps {
   channels: Channel[];
   selectedChannel: Channel | null;
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   onEditChannel: (channel: Channel) => void;
-  isAdmin?: boolean;
-  isAdminEnabled?: boolean;
+  onChannelSelectCheckPermission: () => boolean;
 }
 
 function ChannelList({
@@ -17,12 +15,13 @@ function ChannelList({
   selectedChannel,
   setSearchQuery,
   onEditChannel,
-  isAdmin = false,
-  isAdminEnabled = false,
+  onChannelSelectCheckPermission,
 }: ChannelListProps) {
+
   const onSelectChannel = (channel: Channel) => {
     setSearchQuery("");
     if (channel.id === selectedChannel?.id) return;
+    if (!onChannelSelectCheckPermission()) return;
     socketService.setCurrentChannel(channel.id);
   };
 

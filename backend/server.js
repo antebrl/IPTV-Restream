@@ -1,7 +1,6 @@
 const express = require('express');
 const dotenv = require('dotenv');
 const { Server } = require('socket.io');
-const cookieParser = require('cookie-parser');
 
 const ChatSocketHandler = require('./socket/ChatSocketHandler');
 const ChannelSocketHandler = require('./socket/ChannelSocketHandler');
@@ -20,7 +19,6 @@ dotenv.config();
 
 const app = express();
 app.use(express.json());
-app.use(cookieParser());
 
 // CORS middleware
 app.use((req, res, next) => {
