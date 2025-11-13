@@ -88,10 +88,17 @@ class ChannelService {
             throw new Error('Channel does not exist');
         }
 
+        // Prevent deleting the last channel
+        if (this.channels.length === 1) {
+            throw new Error('Cannot delete the last channel');
+        }
+
         const [deletedChannel] = this.channels.splice(channelIndex, 1);
 
+        // If we deleted the current channel, switch to another one
         if (this.currentChannel.id === id) {
-            await this.setCurrentChannel(0);
+            const nextChannel = this.channels[0];
+            await this.setCurrentChannel(nextChannel.id);
         }
 
         if(save) ChannelStorage.save(this.channels);
