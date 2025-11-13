@@ -155,17 +155,17 @@ function ChannelModal({ onClose, channel }: ChannelModalProps) {
 
   const handleDelete = () => {
     if (channel) {
+      addToast({
+        type: "error",
+        title: `Deleting ${type}`,
+        duration: 3000,
+      });
       if (type === 'channel') {
         socketService.deleteChannel(channel.id);
       } else if (type === 'playlist') {
         socketService.deletePlaylist(channel.playlist);
       }
     }
-    addToast({
-      type: 'error',
-      title: `${type} deleted`,
-      duration: 3000,
-    });
     onClose();
   };
 
