@@ -4,6 +4,9 @@ require('dotenv').config();
 let currentFFmpegProcess = null;
 let currentChannelId = null;
 const STORAGE_PATH = process.env.STORAGE_PATH;
+const USE_GPU = process.env.USE_GPU === 'true';
+const GPU_DECODER = process.env.GPU_DECODER || 'h264_cuvid';
+const GPU_ENCODER = process.env.GPU_ENCODER || 'h264_nvenc';
 
 function startFFmpeg(nextChannel) {
     console.log('Starting FFmpeg process with channel:', nextChannel.id);
@@ -17,22 +20,43 @@ function startFFmpeg(nextChannel) {
     currentChannelId = nextChannel.id;
     const headers = nextChannel.headers;
 
-
-    currentFFmpegProcess = spawn('ffmpeg', [
+    // Build ffmpeg arguments
+    const ffmpegArgs = [
         '-headers', headers.map(header => `${header.key}: ${header.value}`).join('\r\n'),
         '-reconnect', '1',
         '-reconnect_at_eof', '1',
         '-reconnect_streamed', '1',
-        '-reconnect_delay_max', '2',
-        '-i', channelUrl,
-        '-c', 'copy',
+        '-reconnect_delay_max', '2'
+    ];
+
+    // GPU acceleration: Use NVIDIA hardware decoder instead of CPU
+    if (USE_GPU) {
+        console.log(`GPU acceleration enabled: decoder=${GPU_DECODER}, encoder=${GPU_ENCODER}`);
+        ffmpegArgs.push('-hwaccel', 'cuda');  // Enable CUDA hardware acceleration
+        ffmpegArgs.push('-c:v', GPU_DECODER);  // Use GPU decoder (e.g., h264_cuvid)
+    }
+
+    ffmpegArgs.push('-i', channelUrl);
+
+    // GPU acceleration: Use NVIDIA hardware encoder instead of CPU
+    if (USE_GPU) {
+        ffmpegArgs.push('-c:v', GPU_ENCODER);  // Use GPU encoder (e.g., h264_nvenc)
+        ffmpegArgs.push('-c:a', 'copy');  // Keep audio codec as-is (no re-encoding)
+    } else {
+        ffmpegArgs.push('-c', 'copy');  // Keep both video and audio as-is (no re-encoding)
+    }
+
+    // HLS output settings
+    ffmpegArgs.push(
         '-f', 'hls',
         '-hls_time', '6',
         '-hls_list_size', '5',
         '-hls_flags', 'delete_segments+program_date_time',
-        '-start_number', Math.floor(Date.now() / 1000),
+        '-start_number', Math.floor(Date.now() / 1000).toString(),
         `${STORAGE_PATH}${currentChannelId}/${currentChannelId}.m3u8`
-    ]);
+    );
+
+    currentFFmpegProcess = spawn('ffmpeg', ffmpegArgs);
 
     currentFFmpegProcess.stdout.on('data', (data) => {
         console.log(`stdout: ${data}`);

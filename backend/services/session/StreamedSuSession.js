@@ -14,12 +14,20 @@ class StreamedSuSession extends SessionHandler {
 
     static async fetchApiChannels(apiUrl, mode, playlistName) {
         try {
-            const response = await fetch(apiUrl);
-            if (!response.ok) {
-                throw new Error(response);
+            // Set timeout to 90 seconds for large API responses
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
+            
+            let response, data;
+            try {
+                response = await fetch(apiUrl, { signal: controller.signal });
+                if (!response.ok) {
+                    throw new Error(response);
+                }
+                data = await response.json();
+            } finally {
+                clearTimeout(timeoutId);
             }
-
-            const data = await response.json();
 
             let channels = [];
             data.forEach(stream => {

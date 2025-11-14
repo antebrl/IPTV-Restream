@@ -35,6 +35,23 @@ services:
       # ADMIN_ENABLED: "true"
       # ADMIN_PASSWORD: "your_secure_password"
       # CHANNEL_SELECTION_REQUIRES_ADMIN: "true"
+
+      # GPU acceleration configuration (NVIDIA)
+      # Set USE_GPU to "true" to enable NVIDIA GPU acceleration
+      # USE_GPU: "true"
+      # GPU_DECODER: "h264_cuvid"  # Options: h264_cuvid, hevc_cuvid, mpeg2_cuvid, vc1_cuvid, vp8_cuvid, vp9_cuvid
+      # GPU_ENCODER: "h264_nvenc"  # Options: h264_nvenc, hevc_nvenc
+    
+    # Uncomment the following lines to enable NVIDIA GPU support
+    # Requires nvidia-docker2 or Docker with NVIDIA Container Runtime installed
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+    
     networks:
       - app-network
 

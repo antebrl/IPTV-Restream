@@ -70,6 +70,8 @@ const server = app.listen(PORT, async () => {
   PlaylistUpdater.registerChannelsPlaylist(ChannelService.getChannels());
 });
 
+// Increase server timeout to 90 seconds for large playlist requests
+server.timeout = 90000;
 
 // Web Sockets with explicit CORS configuration
 const io = new Server(server, {
@@ -79,6 +81,9 @@ const io = new Server(server, {
     allowedHeaders: ["Authorization", "Content-Type"],
     credentials: true,
   },
+  // Increase ping timeout to prevent disconnection during large playlist loading
+  pingTimeout: 90000,
+  pingInterval: 25000,
 });
 
 // Add JWT authentication middleware to socket.io
