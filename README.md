@@ -1,16 +1,3 @@
-> [!NOTE]
->
-> #### NEW VERSION
-> 🎉 I'm currently working on a fully hosted version – no setup required and **completely FREE**!   
-> 👉 Join the [WAITLIST](https://iptv-waitlist.vercel.app/) to show your interest and be among the first to try it out.
->
-> 🚀 The upcoming version will include several highly requested features:
-> - **Group Watching** – Multiple groups can watch different channels independently.
-> - **Authentication & Team Management** – Invite people, assign roles, and manage access.
-> - **Personal Channel Management** – Each user can create custom channel groups and favorites.
-> - **Improved Streaming** – Smoother playback and a more robust synchronization engine.
-> - **Extended Format Support** – Compatibility with MPEG-DASH and Xtream-Codes.
-
 # IPTV StreamHub
  A simple IPTV `restream` and `synchronization` (watch2gether) application with `web` frontend. Share your iptv playlist and watch it together with your friends.
 
@@ -65,22 +52,6 @@ There is also [documentation for ADVANCED DEPLOYMENT](/deployment/README.md):
 These are some tested playlists as an example. Use your own iptv playlist for the best quality!
 - [Free TV Channels](https://github.com/iptv-org/iptv): Huge collection of free tv-channels. One playlist for every country.
 
----
-
-- [Move On Joy Playlist](https://raw.githubusercontent.com/pigzillaaaaa/iptv-scraper/refs/heads/main/moveonjoy.m3u8): A playlist with various channels, including sports and movies. Use the playlist or single channels (preferred) in proxy mode.
-- [Daddylive](https://daddylive.mp/): Various tv-channels including sports
-
-  Use this playlistUrl: `https://raw.githubusercontent.com/pigzillaaaaa/iptv-scraper/refs/heads/main/daddylive-channels.m3u8`. <br>
-  Also add these headers:
-  - `Referer`: setting `#EXTVLCOPT:http-referrer` of the [playlist](https://raw.githubusercontent.com/pigzillaaaaa/iptv-scraper/refs/heads/main/daddylive-channels.m3u8)
-  - `Origin`: setting `#EXTVLCOPT:http-origin` of the [playlist](https://raw.githubusercontent.com/pigzillaaaaa/iptv-scraper/refs/heads/main/daddylive-channels.m3u8)
- 
-  The daddylive playlist only works locally! It won't work on the test server (https://ante.is-a.dev)! <br>
-  You also have to update (remove and add again) the playlist regularly, as the headers change regularly! This will be done automatically in the [new version](#new-version).
-
-- [Streamed SU Sports](https://streamed.su): Sport live-events <br>
-  Just put any [matches api url](https://streamed.su/docs/matches) e.g. `https://streamed.su/api/matches/football/popular` as playlistUrl.
-  
 ## 🖼️ Preview
 ![Frontend Preview](/frontend/ressources/frontend-preview.png)
 ![Add channel](/frontend/ressources/add-channel.png)
