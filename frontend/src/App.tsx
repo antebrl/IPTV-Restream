@@ -37,6 +37,11 @@ function AppContent() {
   const { isAdmin, isAdminEnabled, setIsAdminEnabled, channelSelectRequiresAdmin, setChannelSelectRequiresAdmin } = useAdmin();
   const { addToast } = useContext(ToastContext);
 
+  // Función para manejar la selección de canal localmente
+  const handleChannelSelect = (channel: Channel) => {
+    setSelectedChannel(channel);
+  };
+
   // Get unique playlists from channels
   const playlists = useMemo(() => {
     const uniquePlaylists = new Set(channels.map(channel => channel.playlistName).filter(playlistName => playlistName !== null));
@@ -95,10 +100,6 @@ function AppContent() {
       setChannels((prevChannels) => [...prevChannels, channel]);
     };
 
-    const channelSelectedListener = (nextChannel: Channel) => {
-      setSelectedChannel(nextChannel);
-    };
-
     const channelUpdatedListener = (updatedChannel: Channel) => {
       setChannels((prevChannels) =>
         prevChannels.map((channel) =>
@@ -128,9 +129,16 @@ function AppContent() {
     };
 
     const channelDeletedListener = (deletedChannel: number) => {
-      setChannels((prevChannels) =>
-        prevChannels.filter((channel) => channel.id !== deletedChannel)
-      );
+      setChannels((prevChannels) => {
+        const updatedChannels = prevChannels.filter((channel) => channel.id !== deletedChannel);
+        
+        // Si el canal eliminado es el que está seleccionado, cambiar al primero disponible
+        if (selectedChannel?.id === deletedChannel && updatedChannels.length > 0) {
+          setSelectedChannel(updatedChannels[0]);
+        }
+        
+        return updatedChannels;
+      });
     };
 
     const errorListener = (error: { message: string }) => {
@@ -143,7 +151,7 @@ function AppContent() {
     };
 
     socketService.subscribeToEvent('channel-added', channelAddedListener);
-    socketService.subscribeToEvent('channel-selected', channelSelectedListener);
+    // Eliminado: channel-selected listener (selección independiente por usuario)
     socketService.subscribeToEvent('channel-updated', channelUpdatedListener);
     socketService.subscribeToEvent('channel-deleted', channelDeletedListener);
     socketService.subscribeToEvent('app-error', errorListener);
@@ -152,10 +160,7 @@ function AppContent() {
 
     return () => {
       socketService.unsubscribeFromEvent('channel-added', channelAddedListener);
-      socketService.unsubscribeFromEvent(
-        'channel-selected',
-        channelSelectedListener
-      );
+      // Eliminado: channel-selected unsubscribe (selección independiente por usuario)
       socketService.unsubscribeFromEvent(
         'channel-updated',
         channelUpdatedListener
@@ -355,6 +360,7 @@ function AppContent() {
                   }
                   return true;
                 }}
+                onChannelSelect={handleChannelSelect}
               />
             </div>
 

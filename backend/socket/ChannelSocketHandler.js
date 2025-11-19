@@ -38,7 +38,8 @@ module.exports = (io, socket) => {
         });
       }
       const nextChannel = await ChannelService.setCurrentChannel(id);
-      io.emit("channel-selected", nextChannel); // Broadcast to all clients
+      // Solo emitir al cliente que solicitó el cambio, no a todos
+      socket.emit("channel-selected", nextChannel);
     } catch (err) {
       console.error(err);
       socket.emit("app-error", { message: err.message });
@@ -54,10 +55,9 @@ module.exports = (io, socket) => {
         });
       }
 
-      const lastChannel = ChannelService.getCurrentChannel();
-      const current = await ChannelService.deleteChannel(id);
+      await ChannelService.deleteChannel(id);
       io.emit("channel-deleted", id); // Broadcast to all clients
-      if (lastChannel.id != current.id) io.emit("channel-selected", current);
+      // Ya no emitimos channel-selected, cada cliente maneja su selección localmente
     } catch (err) {
       console.error(err);
       socket.emit("app-error", { message: err.message });

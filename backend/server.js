@@ -62,10 +62,7 @@ app.use('/proxy', proxyRouter);
 const PORT = 5000;
 const server = app.listen(PORT, async () => {
   console.log(`Server listening on Port ${PORT}`);
-  const currentChannel = ChannelService.getCurrentChannel();
-  if (currentChannel && currentChannel.restream()) {
-    await streamController.start(currentChannel);
-  }
+  // Ya no iniciamos FFmpeg automáticamente - cada usuario maneja su canal
   PlaylistUpdater.startScheduler();
   PlaylistUpdater.registerChannelsPlaylist(ChannelService.getChannels());
 });

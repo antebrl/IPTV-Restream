@@ -1,6 +1,5 @@
 import React from "react";
-import { Channel } from "../types";
-import socketService from "../services/SocketService";
+import { Channel } from '../types';
 
 interface ChannelListProps {
   channels: Channel[];
@@ -8,6 +7,7 @@ interface ChannelListProps {
   setSearchQuery: React.Dispatch<React.SetStateAction<string>>;
   onEditChannel: (channel: Channel) => void;
   onChannelSelectCheckPermission: () => boolean;
+  onChannelSelect: (channel: Channel) => void;
 }
 
 function ChannelList({
@@ -16,13 +16,14 @@ function ChannelList({
   setSearchQuery,
   onEditChannel,
   onChannelSelectCheckPermission,
+  onChannelSelect,
 }: ChannelListProps) {
 
   const onSelectChannel = (channel: Channel) => {
     setSearchQuery("");
     if (channel.id === selectedChannel?.id) return;
     if (!onChannelSelectCheckPermission()) return;
-    socketService.setCurrentChannel(channel.id);
+    onChannelSelect(channel);
   };
 
   const onRightClickChannel = (event: React.MouseEvent, channel: Channel) => {
