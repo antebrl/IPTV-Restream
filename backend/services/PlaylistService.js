@@ -11,8 +11,16 @@ class PlaylistService {
 
         let content = "";
         if(playlist.startsWith("http")) {
-            const response = await fetch(playlist);
-            content = await response.text();
+            // Set timeout to 90 seconds for large playlists
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 90000);
+            
+            try {
+                const response = await fetch(playlist, { signal: controller.signal });
+                content = await response.text();
+            } finally {
+                clearTimeout(timeoutId);
+            }
 
             //check for streamedSu here and add channel for every source
             if(playlist.includes('streamed.su')) {
