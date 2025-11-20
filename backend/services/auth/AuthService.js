@@ -33,7 +33,7 @@ class AuthService {
     
     if (stats.total === 0) {
       const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
-      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123456';
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123456789';
       
       if (defaultPassword.length < 12) {
         console.warn('WARNING: Default admin password is less than 12 characters. Please set DEFAULT_ADMIN_PASSWORD in .env');
