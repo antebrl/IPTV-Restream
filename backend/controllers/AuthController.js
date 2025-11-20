@@ -2,52 +2,49 @@ require("dotenv").config();
 const authService = require("../services/auth/AuthService");
 
 module.exports = {
-  adminLogin(req, res) {
-    if (!authService.isAdminEnabled()) {
-      return res.status(403).json({
-        success: false,
-        message: "Admin mode is disabled on this server",
-      });
-    }
+  /**
+   * Login endpoint for all users (admin and regular users)
+   */
+  login(req, res) {
+    const { username, password } = req.body;
 
-    const { password } = req.body;
-
-    if (!password) {
+    if (!username || !password) {
       return res.status(400).json({
         success: false,
-        message: "Password is required",
+        message: "Username and password are required",
       });
     }
 
-    if (authService.verifyAdminPassword(password)) {
-      const token = authService.generateAdminToken();
+    const result = authService.login(username, password);
 
-      return res.json({
-        success: true,
-        token,
-      });
-    } else {
+    if (!result) {
       return res.status(401).json({
         success: false,
-        message: "Invalid password",
+        message: "Invalid username or password",
       });
     }
+
+    return res.json({
+      success: true,
+      token: result.token,
+      user: result.user,
+    });
   },
 
-  checkAdminStatus(req, res) {
+  /**
+   * Check authentication status
+   */
+  checkAuthStatus(req, res) {
     res.json({
-      enabled: authService.isAdminEnabled(),
+      authRequired: true,
       channelSelectionRequiresAdmin: authService.channelSelectionRequiresAdmin(),
     });
   },
 
+  /**
+   * Verify JWT token middleware - REQUIRED for all routes
+   */
   verifyToken(req, res, next) {
-    // If admin mode is disabled, allow all requests (skip authentication)
-    if (!authService.isAdminEnabled()) {
-      req.user = { isAdmin: false };
-      return next();
-    }
-
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
@@ -61,11 +58,24 @@ module.exports = {
     if (!decoded) {
       return res.status(401).json({
         success: false,
-        message: "Invalid token.",
+        message: "Invalid or expired token.",
       });
     }
 
     req.user = decoded;
+    next();
+  },
+
+  /**
+   * Verify admin role middleware
+   */
+  verifyAdmin(req, res, next) {
+    if (!authService.isAdmin(req.user)) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. Admin privileges required.",
+      });
+    }
     next();
   },
 };

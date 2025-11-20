@@ -3,7 +3,7 @@ const path = require("path");
 const Channel = require("../models/Channel");
 const { clear } = require("console");
 
-const storageFilePath = path.resolve("/channels/channels.json");
+const storageFilePath = path.resolve(__dirname, "../channels/channels.json");
 
 module.exports = {
   load() {

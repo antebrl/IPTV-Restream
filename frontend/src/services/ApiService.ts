@@ -21,7 +21,7 @@ const apiService = {
       };
 
       // Add Authorization header if JWT token exists
-      const token = localStorage.getItem('admin_token');
+      const token = localStorage.getItem('auth_token');
       if (token) {
         (options.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`;
       }

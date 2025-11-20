@@ -2,11 +2,11 @@ const ChannelService = require("../services/ChannelService");
 const authService = require("../services/auth/AuthService");
 
 module.exports = (io, socket) => {
-  // Check if admin mode is required for channel modifications
+  // Admin-only: Add channel
   socket.on("add-channel", ({ name, url, avatar, mode, headersJson }) => {
     try {
-      // Check if user is authenticated as admin from the socket middleware
-      if (authService.isAdminEnabled() && !socket.user?.isAdmin) {
+      // Check if user is admin
+      if (!socket.user?.isAdmin) {
         return socket.emit("app-error", {
           message: "Admin access required to add channels",
         });
@@ -26,10 +26,10 @@ module.exports = (io, socket) => {
     }
   });
 
+  // All authenticated users can select channels (unless CHANNEL_SELECTION_REQUIRES_ADMIN is true)
   socket.on("set-current-channel", async (id) => {
     try {
       if (
-        authService.isAdminEnabled() &&
         authService.channelSelectionRequiresAdmin() &&
         !socket.user?.isAdmin
       ) {
@@ -46,10 +46,11 @@ module.exports = (io, socket) => {
     }
   });
 
+  // Admin-only: Delete channel
   socket.on("delete-channel", async (id) => {
     try {
-      // Check if user is authenticated as admin from the socket middleware
-      if (authService.isAdminEnabled() && !socket.user?.isAdmin) {
+      // Check if user is admin
+      if (!socket.user?.isAdmin) {
         return socket.emit("app-error", {
           message: "Admin access required to delete channels",
         });
@@ -64,10 +65,11 @@ module.exports = (io, socket) => {
     }
   });
 
+  // Admin-only: Update channel
   socket.on("update-channel", async ({ id, updatedAttributes }) => {
     try {
-      // Check if user is authenticated as admin from the socket middleware
-      if (authService.isAdminEnabled() && !socket.user?.isAdmin) {
+      // Check if user is admin
+      if (!socket.user?.isAdmin) {
         return socket.emit("app-error", {
           message: "Admin access required to update channels",
         });
