@@ -22,10 +22,19 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         hlsRef.current.destroy();
       }
 
+      // Get auth token for authenticated requests
+      const authToken = localStorage.getItem('auth_token');
+      
       const hls = new Hls({
         autoStartLoad: syncEnabled ? false : true,
         liveDurationInfinity: true,
         //debug: true,
+        xhrSetup: (xhr, url) => {
+          // Add JWT token to all HLS requests (manifest, segments, keys)
+          if (authToken) {
+            xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+          }
+        },
         manifestLoadPolicy: {
           default: {
             maxTimeToFirstByteMs: Infinity,
