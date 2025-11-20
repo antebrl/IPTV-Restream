@@ -6,27 +6,93 @@
 - [x] Connect with **multiple Devices** to 1 IPTV Stream, if your provider limits current streaming devices (restream mode).
 - [x] Proxy all Requests through **one IP** (proxy and restream mode).
   - [x] Helps with CORS issues.
-- [x] **Synchronize** IPTV streaming with multiple devices: Synchronized playback and channel selection for perfect Watch2Gether.
-- [x] **Share your iptv access** without revealing your actual stream-url (privacy-mode) and watch together with your friends.
+- [x] **Private Access** - Only authenticated users can access the application.
+- [x] **User Management** - Administrators can create and manage user accounts with role-based permissions.
+- [x] **Independent Channel Selection** - Each user can watch different channels simultaneously without affecting others.
 
 ## ✨ Features 
-**IPTV Player** - IPTV web player with support for any other iptv players by exposing the playlist.
+**Authentication System** - Secure JWT-based authentication with user management. <br>
+**Role-Based Access** - Admin and user roles with different permission levels. <br>
+**IPTV Player** - IPTV web player with support for any other iptv players by exposing the playlist. <br>
 **Restream / Proxy** - Proxy your iptv streams through the backend. <br>
-**Synchronization** - The selection and playback of the stream is perfectly synchronized for all viewers. <br>
+**Independent Viewing** - Each user can watch different channels without interfering with others. <br>
 **Channels** - Add multiple iptv streams and playlists, you can switch between. <br>
-**Live chat** - chat with other viewers with a randomized profile.
+**Live chat** - Chat with other viewers with a randomized profile.
 
-## 🚀 Run
+## 🚀 Installation Guide
 
-### Run with Docker (Preferred)
+### Prerequisites
+- Node.js (v16 or higher)
+- npm or yarn package manager
 
-Clone the repo
+### Step 1: Clone the Repository
 
 ```bash
-git clone https://github.com/antebrl/IPTV-Restream.git
+git clone https://github.com/lukariny91/IPTV-Restream-mod.git
+cd IPTV-Restream-mod
 ```
 
-Make sure to have docker up & running. Start with docker compose
+### Step 2: Setup Backend
+
+```bash
+cd backend
+npm install
+```
+
+Create a `.env` file in the backend directory:
+```bash
+JWT_SECRET=your-secret-key-here
+PORT=5000
+```
+
+Start the backend server:
+```bash
+node server.js
+```
+
+The backend will automatically create a default admin user on first run:
+- **Username**: `admin`
+- **Password**: `admin123456789`
+
+⚠️ **Important**: Change the default admin password immediately after first login!
+
+### Step 3: Setup Frontend
+
+Open a new terminal and navigate to the frontend directory:
+```bash
+cd frontend
+npm install
+```
+
+Create a `.env` file in the frontend directory:
+```bash
+VITE_BACKEND_URL=
+```
+
+Start the frontend development server:
+```bash
+npm run dev
+```
+
+### Step 4: Access the Application
+
+Open your browser and navigate to:
+```
+http://localhost:8080
+```
+
+### Step 5: First Login
+
+1. Use the default admin credentials:
+   - Username: `admin`
+   - Password: `admin123456789`
+
+2. After logging in, click on the **User Management** button (top right) to:
+   - Change your admin password
+   - Create additional user accounts
+
+### Run with Docker (Alternative)
+
 ```bash
 docker compose up -d
 ```
@@ -43,9 +109,10 @@ Open http://localhost
 
 
 There is also [documentation for ADVANCED DEPLOYMENT](/deployment/README.md):
-- Configuration options (Admin mode).
-- Deploy from container registry and without cloning and building.
-- Deploy together with nginx proxy manager for automatic ssl handling.
+
+- Configuration options
+- Deploy from container registry and without cloning and building
+- Deploy together with nginx proxy manager for automatic ssl handling
 
 ## 🆓 Free compatible playlists
 
@@ -68,41 +135,82 @@ The stream requests are proxied through the backend. Allows to set custom header
 #### `Restream`
 The backend service caches the source stream (with ffmpeg) and restreams it. Can help with hard device restrictions of your provider or synchroization problems (when your iptv channels have no programDateTime). But it can lead to longer initial loading times and performance issues after time.
 
+## 🔐 User Management
+
+### Admin Features
+
+Administrators have full access to all features:
+
+- Create, edit, and delete user accounts
+- Manage channels and playlists
+- Access user management panel
+- Full control over application settings
+
+### User Features
+
+Regular users have limited permissions:
+
+- View and play available channels
+- Independent channel selection (watch different channels simultaneously)
+- Chat with other viewers
+- Cannot modify channels or manage users
+
+### Managing Users
+
+As an admin, click the **User Management** button in the top right corner to:
+
+1. **Create Users**: Add new users with username, password, and role
+2. **Edit Users**: Update user information and change roles
+3. **Delete Users**: Remove user accounts (cannot delete yourself)
+
 ## FAQ & Common Mistakes
 
-Which streaming mode should I choose for the channel?
+**How do I log in for the first time?**
+
+> Use the default admin credentials: username `admin`, password `admin123456789`. Change this password immediately after first login through the User Management panel.
+
+---
+
+**Which streaming mode should I choose for the channel?**
 
 > Generally: You should try with direct mode first, switch to proxy mode if it doesn't work and switch to restream mode if this also doesn't work.
 >
-> Proxy mode is most likely the mode, you will use! You will need restream mode especially when your iptv playlist has no programDateTime set and you want to have playback synchronization.
+> Proxy mode is most likely the mode you will use! You will need restream mode especially when your iptv playlist has no programDateTime set.
+
 ---
 
-How can I use the channels on any other iptv player (e.g. on TV)?
+**How can I use the channels on any other iptv player (e.g. on TV)?**
 
 > Please click on the 📺 (TV-button) in the top-right in the frontend. There you'll find the playlist you have to use in any other iptv player.
-> This playlist contains all your channels and one **CURRENT_CHANNEL**, which forwards the content of the currently played channel.
-> If this playlist does not work, please check if the base-url of the channels in the playlist is correct and set the `BACKEND_URL` in the `docker-compose.yml` if not.
+> This playlist contains all your channels. If this playlist does not work, please check if the base-url of the channels in the playlist is correct and set the `BACKEND_URL` in the `docker-compose.yml` if not.
+
 ---
 
-My playlist only supports xtream codes api!
+**My playlist only supports xtream codes api!**
 
-> [IPTV playlist browser](https://github.com/PhunkyBob/iptv_playlist_browser) allows you to export a m3u playlist from your xtream codes account, and let's you select single channels or the whole playlist. Official xstreams-code integration is planned!
+> [IPTV playlist browser](https://github.com/PhunkyBob/iptv_playlist_browser) allows you to export a m3u playlist from your xtream codes account, and lets you select single channels or the whole playlist. Official xstreams-code integration is planned!
+
 ---
-Error: `Bind for 0.0.0.0:80 failed: port is already allocated`
+
+**Error: `Bind for 0.0.0.0:80 failed: port is already allocated`**
 
 > To fix this, change the [port mapping in the docker-compose](docker-compose.yml#L40) to `X:80` e.g. `8080:80`. Make also sure that port X is open in the firewall configuration if you want to expose the application.
+
 ---
-Is it possible to run components seperately, if I only need the frontend OR backend?
+
+**Can I run components separately?**
 
 > If you only need the **restream** functionality and want to use another iptv player (e.g. VLC), you may only run the [backend](/backend/README.md).
-> <br>
-> If you only need the **synchronization** functionality, you may only run the [frontend](/frontend/README.md).
 >
-> Be aware, that this'll require additional configuration/adaption and won't be officially supported. It is recommended to [run the whole project as once](#run-with-docker-preferred).
----
-Is there a option to limit access of channel management?
+> If you only need a frontend player, you may only run the [frontend](/frontend/README.md).
+>
+> Be aware that this will require additional configuration/adaptation and won't be officially supported. It is recommended to run the whole project at once.
 
-> Yes, you can enable [**Admin Mode**](/deployment/README.md#admin-mode) in the configuration to restrict channel management to authenticated administrators only.
+---
+
+**I forgot my admin password, what should I do?**
+
+> Delete the `backend/data/users.json` file and restart the backend. The default admin user will be recreated automatically.
 
 ## Contribute & Contact
 Feel free to open discussions and issues for any type of requests. Don't hesitate to contact me, if you have any problems with the setup.
