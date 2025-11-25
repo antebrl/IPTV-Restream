@@ -7,13 +7,11 @@ const ChannelStorage = require('./ChannelStorage');
 class ChannelService {
     constructor() {
         this.channels = ChannelStorage.load();
-        this.currentChannel = this.channels[0];
     }
 
     clearChannels() {
         ChannelStorage.clear();
         this.channels = ChannelStorage.load();
-        this.currentChannel = this.channels[0];
     }
 
     getChannels() {
@@ -56,26 +54,18 @@ class ChannelService {
     }
 
     async setCurrentChannel(id) {
+        // Método mantenido para compatibilidad pero ahora simplemente retorna el canal
+        // ya que cada usuario maneja su selección de forma independiente
         const nextChannel = this.channels.find(channel => channel.id === id);
         if (!nextChannel) {
             throw new Error('Channel does not exist');
-        }
-
-        if (this.currentChannel !== nextChannel) {
-            if (nextChannel.restream()) {
-                streamController.stop(this.currentChannel);
-                storageService.deleteChannelStorage(nextChannel.id);
-                await streamController.start(nextChannel);
-            } else {
-                streamController.stop(this.currentChannel);
-            }
-            this.currentChannel = nextChannel;
         }
         return nextChannel;
     }
 
     getCurrentChannel() {
-        return this.currentChannel;
+        // Retorna el primer canal disponible (usado en inicialización del frontend)
+        return this.channels.length > 0 ? this.channels[0] : null;
     }
 
     getChannelById(id) {
@@ -93,17 +83,9 @@ class ChannelService {
             throw new Error('Cannot delete the last channel');
         }
 
-        const [deletedChannel] = this.channels.splice(channelIndex, 1);
-
-        // If we deleted the current channel, switch to another one
-        if (this.currentChannel.id === id) {
-            const nextChannel = this.channels[0];
-            await this.setCurrentChannel(nextChannel.id);
-        }
+        this.channels.splice(channelIndex, 1);
 
         if(save) ChannelStorage.save(this.channels);
-
-        return this.currentChannel;
     }
 
     async updateChannel(id, updatedAttributes, save = true) {
@@ -113,21 +95,8 @@ class ChannelService {
             throw new Error('Channel does not exist');
         }
 
-        const streamChanged = updatedAttributes.url != this.currentChannel.url ||
-            JSON.stringify(updatedAttributes.headers) != JSON.stringify(this.currentChannel.headers) ||
-            updatedAttributes.mode != this.currentChannel.mode;
-
         const channel = this.channels[channelIndex];
         Object.assign(channel, updatedAttributes);
-
-        if (this.currentChannel.id == id) {
-            if (streamChanged) {
-                streamController.stop(channel);
-                if (channel.restream()) {
-                    await streamController.start(channel);
-                }
-            }
-        }
 
         if(save) ChannelStorage.save(this.channels);
 

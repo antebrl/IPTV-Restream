@@ -12,7 +12,7 @@ async function handleAddPlaylist(
 ) {
   try {
     // Check if user is authenticated as admin from the socket middleware
-    if (authService.isAdminEnabled() && !socket.user?.isAdmin) {
+    if (!socket.user?.isAdmin) {
       return socket.emit("app-error", {
         message: "Admin access required to add playlists",
       });
@@ -50,7 +50,7 @@ async function handleUpdatePlaylist(
 ) {
   try {
     // Check if user is authenticated as admin from the socket middleware
-    if (authService.isAdminEnabled() && !socket.user?.isAdmin) {
+    if (!socket.user?.isAdmin) {
       return socket.emit("app-error", {
         message: "Admin access required to update playlists",
       });
@@ -93,7 +93,7 @@ async function handleUpdatePlaylist(
 async function handleDeletePlaylist({ playlist }, io, socket) {
   try {
     // Check if user is authenticated as admin from the socket middleware
-    if (authService.isAdminEnabled() && !socket.user?.isAdmin) {
+    if (!socket.user?.isAdmin) {
       return socket.emit("app-error", {
         message: "Admin access required to delete playlists",
       });

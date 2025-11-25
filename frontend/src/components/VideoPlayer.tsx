@@ -22,10 +22,27 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
         hlsRef.current.destroy();
       }
 
+      // Get auth token for authenticated requests
+      const authToken = localStorage.getItem('auth_token');
+      
       const hls = new Hls({
         autoStartLoad: syncEnabled ? false : true,
         liveDurationInfinity: true,
         //debug: true,
+        xhrSetup: (xhr, url) => {
+          // Add JWT token to all HLS requests (manifest, segments, keys)
+          if (authToken) {
+            xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+          }
+          // Extra headers for direct mode (algunos orígenes requieren Referer/User-Agent/etc.)
+          if (channel?.mode === 'direct' && Array.isArray(channel.headers)) {
+            channel.headers.forEach(h => {
+              if (h?.key && h?.value) {
+                try { xhr.setRequestHeader(h.key, h.value); } catch (e) { /* ignore */ }
+              }
+            });
+          }
+        },
         manifestLoadPolicy: {
           default: {
             maxTimeToFirstByteMs: Infinity,
@@ -59,6 +76,7 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
       };    
 
       hlsRef.current = hls;
+      const fallbackTriedRef = { directToProxy: false };
       hls.loadSource(sourceLinks[channel.mode]);
       hls.attachMedia(video);
 
@@ -186,27 +204,63 @@ function VideoPlayer({ channel, syncEnabled }: VideoPlayerProps) {
 
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-
-          console.error('HLS error:', data);
-
+          console.error('HLS fatal error:', data);
           if (toastStartId) {
             removeToast(toastStartId);
           }
 
+          // Fallback automático: direct -> proxy
+            if (channel.mode === 'direct' && !fallbackTriedRef.directToProxy) {
+              fallbackTriedRef.directToProxy = true;
+              addToast({
+                type: 'loading',
+                title: 'Fallback Proxy',
+                message: 'Direct mode failed. Trying proxy...',
+                duration: 4000,
+              });
+              try {
+                hls.destroy();
+                const hlsProxy = new Hls({
+                  autoStartLoad: true,
+                  liveDurationInfinity: true,
+                  xhrSetup: (xhr) => {
+                    if (authToken) xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
+                    // proxy ya añade headers desde backend, no necesitamos repetir aquí.
+                  }
+                });
+                hlsRef.current = hlsProxy;
+                hlsProxy.loadSource(import.meta.env.VITE_BACKEND_URL + '/proxy/channel?url=' + encodeURIComponent(channel.url));
+                hlsProxy.attachMedia(video);
+                hlsProxy.on(Hls.Events.MANIFEST_PARSED, () => {
+                  video.play();
+                });
+                hlsProxy.on(Hls.Events.ERROR, (_, proxyErr) => {
+                  if (proxyErr.fatal) {
+                    addToast({
+                      type: 'error',
+                      title: 'Stream Error',
+                      message: 'Direct and proxy failed. Try restream mode.',
+                      duration: 6000,
+                    });
+                  }
+                });
+                return; // no mostrar mensaje original todavía
+              } catch (e) {
+                console.error('Proxy fallback failed:', e);
+              }
+            }
+
           const messages: Record<ChannelMode, string> = {
-            direct: 'The stream is not working. Try with proxy/restream option enabled for this channel.',
-            proxy: 'The stream is not working. Try with restream option enabled for this channel.',
-            restream: `The stream is not working. Check the source. ${data.response?.text}`,
+            direct: 'Direct mode failed. Enable proxy or restream for this channel.',
+            proxy: 'Proxy mode failed. Try restream option for this channel.',
+            restream: `Restream failed. Check source / transcoding. ${data.response?.text || ''}`,
           };
-          
           addToast({
             type: 'error',
             title: 'Stream Error',
             message: messages[channel.mode],
             duration: 5000,
           });
-          return;
-          
         }
       });
     }

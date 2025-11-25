@@ -11,6 +11,7 @@ const proxyController = require('./controllers/ProxyController');
 const centralChannelController = require('./controllers/CentralChannelController');
 const channelController = require('./controllers/ChannelController');
 const authController = require('./controllers/AuthController');
+const userController = require('./controllers/UserController');
 const streamController = require('./services/restream/StreamController');
 const ChannelService = require('./services/ChannelService');
 const PlaylistUpdater = require('./services/PlaylistUpdater');
@@ -31,27 +32,41 @@ app.use((req, res, next) => {
   next();
 });
 
-// Auth routes
+// Auth routes (public - no token required)
 const authRouter = express.Router();
-authRouter.post('/admin-login', authController.adminLogin);
-authRouter.get('/admin-status', authController.checkAdminStatus);
-
+authRouter.post('/login', authController.login);
+authRouter.get('/status', authController.checkAuthStatus);
 app.use('/api/auth', authRouter);
 
-// Channel routes
+// User routes (protected - authentication required)
+const userRouter = express.Router();
+userRouter.use(authController.verifyToken); // All user routes require authentication
+userRouter.get('/me', userController.getCurrentUser);
+userRouter.get('/', authController.verifyAdmin, userController.getAllUsers);
+userRouter.get('/stats', authController.verifyAdmin, userController.getUserStats);
+userRouter.get('/:id', userController.getUserById);
+userRouter.post('/', authController.verifyAdmin, userController.createUser);
+userRouter.put('/:id', userController.updateUser); // Users can update themselves, admins can update anyone
+userRouter.delete('/:id', authController.verifyAdmin, userController.deleteUser);
+app.use('/api/users', userRouter);
+
+// Channel routes (all protected - authentication required)
 const apiRouter = express.Router();
+apiRouter.use(authController.verifyToken); // All channel routes require authentication
 apiRouter.get('/', channelController.getChannels);
 apiRouter.get('/current', channelController.getCurrentChannel);
-apiRouter.delete('/clear', authController.verifyToken, channelController.clearChannels);
 apiRouter.get('/playlist', centralChannelController.playlist);
 apiRouter.get('/:channelId', channelController.getChannel);
-// Protected routes
-apiRouter.delete('/:channelId', authController.verifyToken, channelController.deleteChannel);
-apiRouter.put('/:channelId', authController.verifyToken, channelController.updateChannel);
-apiRouter.post('/', authController.verifyToken, channelController.addChannel);
+// Admin-only channel management
+apiRouter.delete('/clear', authController.verifyAdmin, channelController.clearChannels);
+apiRouter.delete('/:channelId', authController.verifyAdmin, channelController.deleteChannel);
+apiRouter.put('/:channelId', authController.verifyAdmin, channelController.updateChannel);
+apiRouter.post('/', authController.verifyAdmin, channelController.addChannel);
 app.use('/api/channels', apiRouter);
 
+// Proxy routes (protected - authentication required)
 const proxyRouter = express.Router();
+proxyRouter.use(authController.verifyToken); // All proxy routes require authentication
 proxyRouter.get('/channel', proxyController.channel);
 proxyRouter.get('/segment', proxyController.segment);
 proxyRouter.get('/key', proxyController.key);
@@ -62,10 +77,7 @@ app.use('/proxy', proxyRouter);
 const PORT = 5000;
 const server = app.listen(PORT, async () => {
   console.log(`Server listening on Port ${PORT}`);
-  const currentChannel = ChannelService.getCurrentChannel();
-  if (currentChannel && currentChannel.restream()) {
-    await streamController.start(currentChannel);
-  }
+  // Ya no iniciamos FFmpeg automáticamente - cada usuario maneja su canal
   PlaylistUpdater.startScheduler();
   PlaylistUpdater.registerChannelsPlaylist(ChannelService.getChannels());
 });

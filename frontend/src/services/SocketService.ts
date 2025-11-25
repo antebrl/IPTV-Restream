@@ -10,7 +10,7 @@ class SocketService {
   // Initialize connection with JWT token if available
   connect() {
     // Get JWT token from localStorage
-    const newToken = localStorage.getItem('admin_token');
+    const newToken = localStorage.getItem('auth_token');
 
     // If already connected with the same token, don't reconnect
     if (this.socket?.connected && this.token === newToken) {
@@ -41,7 +41,9 @@ class SocketService {
     }
 
     // Connect with auth token if available
-    this.socket = io(import.meta.env.VITE_BACKEND_URL, {
+    // Use empty string to connect to same origin (works with Vite proxy)
+    const socketUrl = import.meta.env.VITE_BACKEND_URL || '';
+    this.socket = io(socketUrl, {
       auth: this.token ? { token: this.token } : undefined,
     });
 

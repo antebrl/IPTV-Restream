@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useContext } from 'react';
-import { Search, Plus, Settings, Users, Radio, Tv2, ChevronDown, Shield } from 'lucide-react';
+import { Search, Plus, Settings, Users as UsersIcon, Radio, Tv2, ChevronDown, Shield, LogOut } from 'lucide-react';
 import VideoPlayer from './components/VideoPlayer';
 import ChannelList from './components/ChannelList';
 import Chat from './components/chat/Chat';
@@ -12,16 +12,26 @@ import TvPlaylistModal from './components/TvPlaylistModal';
 import { ToastProvider, ToastContext } from './components/notifications/ToastContext';
 import ToastContainer from './components/notifications/ToastContainer';
 import { AdminProvider, useAdmin } from './components/admin/AdminContext';
-import AdminModal from './components/admin/AdminModal';
+import LoginModal from './components/auth/LoginModal';
+import UserManagement from './components/admin/UserManagement';
+
+interface User {
+  id: string;
+  username: string;
+  role: 'admin' | 'user';
+}
 
 function AppContent() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   const [channels, setChannels] = useState<Channel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isTvPlaylistOpen, setIsTvPlaylistOpen] = useState(false);
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [syncEnabled, setSyncEnabled] = useState(() => {
     const savedValue = localStorage.getItem('syncEnabled');
     return savedValue !== null ? JSON.parse(savedValue) : false;
@@ -34,10 +44,65 @@ function AppContent() {
   const [isPlaylistDropdownOpen, setIsPlaylistDropdownOpen] = useState(false);
   const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false);
 
-  const { isAdmin, isAdminEnabled, setIsAdminEnabled, channelSelectRequiresAdmin, setChannelSelectRequiresAdmin } = useAdmin();
+  const { isAdmin, setIsAdmin, channelSelectRequiresAdmin, setChannelSelectRequiresAdmin } = useAdmin();
   const { addToast } = useContext(ToastContext);
 
-  // Get unique playlists from channels
+  // Check if user is already authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('auth_token');
+      const userStr = localStorage.getItem('user');
+
+      if (token && userStr) {
+        try {
+          const user = JSON.parse(userStr);
+          setCurrentUser(user);
+          setIsAdmin(user.role === 'admin');
+          setIsAuthenticated(true);
+        } catch (error) {
+          console.error('Error parsing user data:', error);
+          localStorage.removeItem('auth_token');
+          localStorage.removeItem('user');
+        }
+      }
+      setIsCheckingAuth(false);
+    };
+
+    checkAuth();
+  }, []);
+
+  const handleLoginSuccess = (user: User, token: string) => {
+    setCurrentUser(user);
+    setIsAdmin(user.role === 'admin');
+    setIsAuthenticated(true);
+    addToast({
+      type: 'success',
+      title: 'Welcome!',
+      message: `Logged in as ${user.username}`,
+      duration: 3000,
+    });
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token');
+    localStorage.removeItem('user');
+    setCurrentUser(null);
+    setIsAdmin(false);
+    setIsAuthenticated(false);
+    socketService.disconnect();
+    addToast({
+      type: 'info',
+      title: 'Logged out',
+      duration: 3000,
+    });
+  };
+
+  // Función para manejar la selección de canal localmente
+  const handleChannelSelect = (channel: Channel) => {
+    setSelectedChannel(channel);
+  };
+
+  // Get unique playlists from channels - ALWAYS call hooks in the same order
   const playlists = useMemo(() => {
     const uniquePlaylists = new Set(channels.map(channel => channel.playlistName).filter(playlistName => playlistName !== null));
     return ['All Channels', ...Array.from(uniquePlaylists)];
@@ -70,15 +135,18 @@ function AppContent() {
     return ['Category', ...Array.from(uniqueGroups)];
   }, [selectedPlaylist, channels]);
 
+  // Load data and setup socket connections - ALWAYS call this hook
   useEffect(() => {
+    // Only load data if authenticated
+    if (!isAuthenticated) return;
+
     // Check if admin mode is enabled on the server
     apiService
-      .request<{ enabled: boolean; channelSelectionRequiresAdmin: boolean }>('/auth/admin-status', 'GET')
+      .request<{ authRequired: boolean; channelSelectionRequiresAdmin: boolean }>('/auth/status', 'GET')
       .then((data) => {
-        setIsAdminEnabled(data.enabled);
         setChannelSelectRequiresAdmin(data.channelSelectionRequiresAdmin);
       })
-      .catch((error) => console.error('Error checking admin status:', error));
+      .catch((error) => console.error('Error checking auth status:', error));
 
     apiService
       .request<Channel[]>('/channels/', 'GET')
@@ -93,10 +161,6 @@ function AppContent() {
     console.log('Subscribing to events');
     const channelAddedListener = (channel: Channel) => {
       setChannels((prevChannels) => [...prevChannels, channel]);
-    };
-
-    const channelSelectedListener = (nextChannel: Channel) => {
-      setSelectedChannel(nextChannel);
     };
 
     const channelUpdatedListener = (updatedChannel: Channel) => {
@@ -128,9 +192,16 @@ function AppContent() {
     };
 
     const channelDeletedListener = (deletedChannel: number) => {
-      setChannels((prevChannels) =>
-        prevChannels.filter((channel) => channel.id !== deletedChannel)
-      );
+      setChannels((prevChannels) => {
+        const updatedChannels = prevChannels.filter((channel) => channel.id !== deletedChannel);
+        
+        // Si el canal eliminado es el que está seleccionado, cambiar al primero disponible
+        if (selectedChannel?.id === deletedChannel && updatedChannels.length > 0) {
+          setSelectedChannel(updatedChannels[0]);
+        }
+        
+        return updatedChannels;
+      });
     };
 
     const errorListener = (error: { message: string }) => {
@@ -143,7 +214,7 @@ function AppContent() {
     };
 
     socketService.subscribeToEvent('channel-added', channelAddedListener);
-    socketService.subscribeToEvent('channel-selected', channelSelectedListener);
+    // Eliminado: channel-selected listener (selección independiente por usuario)
     socketService.subscribeToEvent('channel-updated', channelUpdatedListener);
     socketService.subscribeToEvent('channel-deleted', channelDeletedListener);
     socketService.subscribeToEvent('app-error', errorListener);
@@ -152,10 +223,7 @@ function AppContent() {
 
     return () => {
       socketService.unsubscribeFromEvent('channel-added', channelAddedListener);
-      socketService.unsubscribeFromEvent(
-        'channel-selected',
-        channelSelectedListener
-      );
+      // Eliminado: channel-selected unsubscribe (selección independiente por usuario)
       socketService.unsubscribeFromEvent(
         'channel-updated',
         channelUpdatedListener
@@ -168,15 +236,34 @@ function AppContent() {
       socketService.disconnect();
       console.log('WebSocket connection closed');
     };
-  }, []);
+  }, [isAuthenticated]);
+
+  // Show loading state while checking auth
+  if (isCheckingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  // Show login modal if not authenticated
+  if (!isAuthenticated) {
+    return <LoginModal onLoginSuccess={handleLoginSuccess} />;
+  }
 
   const handleEditChannel = (channel: Channel) => {
-    // Only allow editing if admin mode is not enabled or user is admin
-    if (!isAdminEnabled || isAdmin) {
+    // Only admins can edit channels
+    if (isAdmin) {
       setEditChannel(channel);
       setIsModalOpen(true);
     } else {
-      setIsAdminModalOpen(true);
+      addToast({
+        type: 'error',
+        title: 'Permission denied',
+        message: 'Only administrators can edit channels',
+        duration: 3000,
+      });
     }
   };
 
@@ -205,29 +292,38 @@ function AppContent() {
             />
             <Search className="absolute left-3 top-2.5 w-5 h-5 text-gray-400" />
           </div>
-          <div className="flex items-center space-x-4">
-            <Users className="w-6 h-6 text-blue-500" />
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-400 mr-2">{currentUser?.username}</span>
+            {isAdmin && (
+              <button
+                onClick={() => setIsUserManagementOpen(true)}
+                className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                title="User Management"
+              >
+                <UsersIcon className="w-6 h-6 text-yellow-500" />
+              </button>
+            )}
             <button
               onClick={() => setIsTvPlaylistOpen(true)}
               className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              title="TV Playlist"
             >
               <Tv2 className="w-6 h-6 text-blue-500" />
             </button>
             <button
               onClick={() => setIsSettingsOpen(true)}
               className="p-2 hover:bg-gray-800 rounded-lg transition-colors"
+              title="Settings"
             >
               <Settings className="w-6 h-6 text-blue-500" />
             </button>
-            {isAdminEnabled && (
-              <button
-                onClick={() => setIsAdminModalOpen(true)}
-                className={`p-2 hover:bg-gray-800 rounded-lg transition-colors ${isAdmin ?
-                  "text-green-500" : ""}`}
-              >
-                <Shield className="w-6 h-6" />
-              </button>
-            )}
+            <button
+              onClick={handleLogout}
+              className="p-2 hover:bg-red-600 rounded-lg transition-colors"
+              title="Logout"
+            >
+              <LogOut className="w-6 h-6 text-red-500" />
+            </button>
           </div>
         </header>
 
@@ -326,21 +422,18 @@ function AppContent() {
                   </div>
                 </div>
 
-                <button
-                  onClick={() => {
-                    // Only allow adding channels if admin mode is not enabled or user is admin
-                    if (!isAdminEnabled || isAdmin) {
+                {isAdmin && (
+                  <button
+                    onClick={() => {
                       setIsModalOpen(true);
                       setIsGroupDropdownOpen(false);
                       setIsPlaylistDropdownOpen(false);
-                    } else {
-                      setIsAdminModalOpen(true);
-                    }
-                  }}
-                  className="p-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  <Plus className="w-5 h-5" />
-                </button>
+                    }}
+                    className="p-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="w-5 h-5" />
+                  </button>
+                )}
               </div>
 
               <ChannelList
@@ -349,12 +442,18 @@ function AppContent() {
                 setSearchQuery={setSearchQuery}
                 onEditChannel={handleEditChannel}
                 onChannelSelectCheckPermission={() => {
-                  if (isAdminEnabled && channelSelectRequiresAdmin && !isAdmin) {
-                    setIsAdminModalOpen(true);
+                  if (channelSelectRequiresAdmin && !isAdmin) {
+                    addToast({
+                      type: 'error',
+                      title: 'Permission denied',
+                      message: 'Only administrators can select channels',
+                      duration: 3000,
+                    });
                     return false;
                   }
                   return true;
                 }}
+                onChannelSelect={handleChannelSelect}
               />
             </div>
 
@@ -392,10 +491,13 @@ function AppContent() {
         onClose={() => setIsTvPlaylistOpen(false)}
       />
 
-      <AdminModal
-        isOpen={isAdminModalOpen}
-        onClose={() => setIsAdminModalOpen(false)}
-      />
+      {currentUser && (
+        <UserManagement
+          isOpen={isUserManagementOpen}
+          onClose={() => setIsUserManagementOpen(false)}
+          currentUser={currentUser}
+        />
+      )}
 
       <ToastContainer />
     </div>

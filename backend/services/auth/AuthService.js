@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
+const UserService = require("../UserService");
 require("dotenv").config();
 
 /**
@@ -7,45 +8,88 @@ require("dotenv").config();
  */
 class AuthService {
   constructor() {
-    this.ADMIN_ENABLED = process.env.ADMIN_ENABLED === "true";
     this.CHANNEL_SELECTION_REQUIRES_ADMIN =
       process.env.CHANNEL_SELECTION_REQUIRES_ADMIN === "true";
-    this.ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
     this.JWT_EXPIRY = process.env.JWT_EXPIRY || "24h";
+    this.JWT_SECRET = process.env.JWT_SECRET || this.generateSecureSecret();
 
-    // Validate admin password if admin mode is enabled
-    if (
-      this.ADMIN_ENABLED &&
-      (!this.ADMIN_PASSWORD || this.ADMIN_PASSWORD.length < 12)
-    ) {
-      throw new Error(
-        "ADMIN_PASSWORD must be set and at least 12 characters long for security."
-      );
+    // Initialize default admin if no users exist
+    this.initializeDefaultAdmin();
+  }
+
+  /**
+   * Generate a secure random JWT secret
+   * @returns {string} Secure random secret
+   */
+  generateSecureSecret() {
+    return crypto.randomBytes(64).toString('hex');
+  }
+
+  /**
+   * Initialize default admin user if none exist
+   */
+  initializeDefaultAdmin() {
+    const stats = UserService.getUserStats();
+    
+    if (stats.total === 0) {
+      const defaultUsername = process.env.DEFAULT_ADMIN_USERNAME || 'admin';
+      const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || 'admin123456789';
+      
+      if (defaultPassword.length < 12) {
+        console.warn('WARNING: Default admin password is less than 12 characters. Please set DEFAULT_ADMIN_PASSWORD in .env');
+      }
+      
+      UserService.initializeDefaultAdmin(defaultUsername, defaultPassword);
+      console.log(`Default admin user created: ${defaultUsername}`);
     }
-
-    // Generate a secure JWT secret from the admin password
-    // or use a random value if admin mode is disabled
-    this.JWT_SECRET = crypto
-      .createHash("sha256")
-      .update(this.ADMIN_PASSWORD || "")
-      .digest("hex");
   }
   /**
    * Check if channel selection needs admin
    * @returns {boolean}
    */
   channelSelectionRequiresAdmin() {
-    return this.CHANNEL_SELECTION_REQUIRES_ADMIN && this.ADMIN_ENABLED;
+    return this.CHANNEL_SELECTION_REQUIRES_ADMIN;
   }
 
   /**
-   * Generate a JWT token for an admin user
+   * Authenticate user and generate JWT token
+   * @param {string} username - Username
+   * @param {string} password - Password
+   * @returns {Object|null} Object with token and user info, or null if authentication fails
+   */
+  login(username, password) {
+    const user = UserService.authenticate(username, password);
+    
+    if (!user) {
+      return null;
+    }
+
+    const token = this.generateToken(user);
+    
+    return {
+      token,
+      user,
+    };
+  }
+
+  /**
+   * Generate a JWT token for a user
+   * @param {Object} user - User object
    * @returns {string} JWT token
    */
-  generateAdminToken() {
-    return jwt.sign({ isAdmin: true }, this.JWT_SECRET, {
-      expiresIn: this.JWT_EXPIRY,
-    });
+  generateToken(user) {
+    return jwt.sign(
+      {
+        id: user.id,
+        username: user.username,
+        role: user.role,
+        isAdmin: user.role === 'admin',
+      },
+      this.JWT_SECRET,
+      {
+        expiresIn: this.JWT_EXPIRY,
+      }
+    );
   }
 
   /**
@@ -62,20 +106,12 @@ class AuthService {
   }
 
   /**
-   * Check if admin mode is enabled
-   * @returns {boolean} True if admin mode is enabled
+   * Check if user is admin
+   * @param {Object} user - User object from JWT
+   * @returns {boolean} True if user is admin
    */
-  isAdminEnabled() {
-    return this.ADMIN_ENABLED;
-  }
-
-  /**
-   * Verify admin password
-   * @param {string} password - Password to verify
-   * @returns {boolean} True if password matches
-   */
-  verifyAdminPassword(password) {
-    return this.ADMIN_PASSWORD === password;
+  isAdmin(user) {
+    return user && user.role === 'admin';
   }
 }
 
