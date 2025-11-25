@@ -1,36 +1,41 @@
 # Backend
 
-A simple NodeJS web server that is able to proxy and restream your any iptv stream/playlist and manage multiple playlists.
+Servidor Node.js que puede: (1) proxy de streams/playlist IPTV, (2) restream (opcionalmente transcodificando), y (3) gestionar múltiples playlists y canales con autenticación JWT.
 
-## 🚀 Run
+## 🚀 Ejecución
 
-It is strongly advised to [use the frontend together with the backend](../deployment/README.md). 
+Se recomienda usar el backend junto al frontend ([deployment](../deployment/README.md)).
 
+Si deseas ejecutarlo de forma independiente, tienes estas opciones:
 
-If you still want to use it standalone, consider these options:
+### Docker (Preferido)
 
-### With Docker (Preferred)
+En este directorio:
 
-In this directory:
 ```bash
-docker build -t iptv_restream_backend
+docker build -t iptv_restream_backend .
 ```
+
+Ejemplo de ejecución (exponiendo puerto 3000 y montando almacenamiento):
 
 ```bash
 docker run -d \
-  -v {streams_directory}:/streams \
+  --name iptv-backend \
+  -p 3000:3000 \
+  -v /streams:/streams \
   -e STORAGE_PATH=/streams \
+  -e FORCE_TRANSCODE=false \
   iptv_restream_backend
 ```
-make sure that you have created a directory for the streams storage:
-e.g. create `/streams` and replace `{streams_directory}` with it.
 
-### Bare metal
+Asegúrate de crear el directorio `/streams` en el host y otorgar permisos de escritura.
 
-Setup a `.env` file or 
-equivalent environment variables:
+### Bare Metal
+
+Configura un archivo `.env` (o variables de entorno equivalentes):
+
 ```env
-STORAGE_PATH=/mnt/streams/recordings
+STORAGE_PATH=/streams
 # Opcional: forzar transcodificación si algunos canales muestran pantalla negra
 # (convierte todo a H.264 + AAC, útil si origen viene en H.265/HEVC, MPEG-2, AC3, etc.)
 FORCE_TRANSCODE=true
@@ -46,14 +51,15 @@ HLS_SEGMENT_TIME=6
 HLS_LIST_SIZE=5
 ```
 
-The storage directory has to exist. There will be alot of I/O, so it makes sense to mount the storage into ram memory.
+El directorio definido en `STORAGE_PATH` debe existir. Habrá mucha E/S; usar RAM (tmpfs) puede reducir latencia.
 
-Before running, make sure you have `ffmpeg` installed on your system.
+Antes de ejecutar, asegúrate de tener `ffmpeg` instalado.
 
 ```bash
-node index.js
+node server.js
 ```
-Be aware, that this application is designed for Linux systems!
+
+La aplicación está diseñada y probada principalmente en sistemas Linux.
 
 To use together with the frontend, [run with docker](../README.md#run-with-docker-preferred).
 
@@ -62,18 +68,22 @@ To use together with the frontend, [run with docker](../README.md#run-with-docke
 Si algunos canales descargan segmentos `.ts` y el manifiesto `.m3u8` pero el reproductor permanece en negro, normalmente la causa es que el códec de video/audio del origen no es soportado por el navegador (por ejemplo HEVC/H.265, MPEG-2 video, audio AC3/E-AC3 sin transcoding, o un stream solo-audio). El modo actual de restream (sin transcodificar) usa `-c copy` y mantiene los códecs originales. Activa `FORCE_TRANSCODE=true` para obligar a FFmpeg a convertir a H.264 (yuv420p, perfil baseline nivel 3.0) + AAC estéreo, asegurando compatibilidad amplia.
 
 Variables clave:
-* `FORCE_TRANSCODE=true` habilita la conversión.
-* Ajusta `TRANSCODE_VIDEO_CODEC`, `TRANSCODE_AUDIO_CODEC` si necesitas otros códecs (requiere soporte FFmpeg).
-* `HLS_SEGMENT_TIME` y `HLS_LIST_SIZE` controlan latencia y longitud del playlist.
+
+* `FORCE_TRANSCODE=true` habilita conversión universal.
+* Ajusta `TRANSCODE_VIDEO_CODEC`, `TRANSCODE_AUDIO_CODEC` según compatibilidad deseada.
+* `HLS_SEGMENT_TIME` y `HLS_LIST_SIZE` influyen en latencia vs estabilidad.
 
 Diagnóstico rápido (ejecutar sobre un segmento descargado):
+
 ```bash
 ffprobe -hide_banner -loglevel error -select_streams v:0 -show_entries stream=codec_name -of default=nw=1 "ruta/al/segmento.ts"
 ffprobe -hide_banner -loglevel error -show_streams "ruta/al/segmento.ts"
 ```
+
 Si aparece `hevc`, `mpeg2video` o audio `ac3/eac3`, considera transcodificar.
 
-Con Docker, añade al `docker run`:
+Con Docker, añade al `docker run` si lo necesitas:
+
 ```bash
 -e FORCE_TRANSCODE=true -e TRANSCODE_VIDEO_CODEC=libx264 -e TRANSCODE_AUDIO_CODEC=aac \
 -e TRANSCODE_PRESET=veryfast -e TRANSCODE_PROFILE=baseline -e TRANSCODE_LEVEL=3.0 \
@@ -81,7 +91,23 @@ Con Docker, añade al `docker run`:
 -e HLS_SEGMENT_TIME=6 -e HLS_LIST_SIZE=5 \
 ```
 
-Desactiva `FORCE_TRANSCODE` si tu fuente ya está en H.264 + AAC y quieres menor uso de CPU.
+Desactiva `FORCE_TRANSCODE` si el origen ya es H.264 + AAC para ahorrar CPU.
+
+## 🔐 Variables de Entorno Principales
+
+| Variable | Descripción |
+|----------|-------------|
+| `JWT_SECRET` | Clave para firmar tokens JWT (cambia en producción). |
+| `JWT_EXPIRY` | Tiempo de expiración (ej: `24h`). |
+| `DEFAULT_ADMIN_USERNAME/PASSWORD` | Credenciales creadas si no existen usuarios. |
+| `CHANNEL_SELECTION_REQUIRES_ADMIN` | Restringe selección de canal a administradores. |
+| `STORAGE_PATH` | Carpeta donde se generan playlists y segmentos HLS. |
+| `FORCE_TRANSCODE` | Fuerza transcodificación (true/false). |
+| `TRANSCODE_...` | Parámetros finos de transcodificación (video/audio). |
+| `HLS_SEGMENT_TIME` | Duración en segundos de cada segmento HLS. |
+| `HLS_LIST_SIZE` | Cantidad de entradas en playlist antes de rotar. |
+
+Mantén secretos fuera de control de versiones usando variables de entorno en tu orquestador.
 
 ## 🛠️ Endpoints
 
@@ -89,34 +115,37 @@ Desactiva `FORCE_TRANSCODE` si tu fuente ya está en H.264 + AAC y quieres menor
 
 #### [ChannelController](./controllers/ChannelController.js)
 
-- GET: `/api/channels/:channelId` and `/api/channels` to get information about the registered channels.
-- GET: `/api/channels/current` to get the currently playing channel.
-- PUT: `api/channels/:channelId` to update a channel.
-- DELETE: `api/channels/:channelId` to delete a channel.
-- POST: `api/channels` to create a new channel.
+* GET: `/api/channels/:channelId` and `/api/channels` to get information about the registered channels.
+* GET: `/api/channels/current` to get the currently playing channel.
+* PUT: `api/channels/:channelId` to update a channel.
+* DELETE: `api/channels/:channelId` to delete a channel.
+* POST: `api/channels` to create a new channel.
 
 #### [ProxyController](./controllers/ProxyController.js)
 
-- `/proxy/channel` to get the M3U File of the current channel
-- `/proxy/segment` and `/proxy/key` will be used by the iptv player directly
+* `/proxy/channel` to get the M3U File of the current channel
+* `/proxy/segment` and `/proxy/key` will be used by the iptv player directly
 
 #### Restream
 
-- `/streams/{currentChannelId}/{currentChannelId}.m3u` to access the current restream.
+* `/streams/{channelId}/{channelId}.m3u8` acceder al HLS restream del canal.
 
 ### WebSocket
 
-- `channel-added` and `channel-selected` events will be send to all connected clients
-- chat messages: `send-chat-message` and `chat-message`
-- users: `user-connected` and `user-disconnected`
+* Eventos canales: `channel-added`, `channel-selected`.
+* Chat: `send-chat-message`, `chat-message`.
+* Usuarios: `user-connected`, `user-disconnected`.
 
-## ℹ️ Usage without the frontend (with other iptv player)
-You can use all the channels with any other IPTV player. The backend exposes a **M3U Playlist** on `http://your-domain/api/channels/playlist`. You can also find it by clicking on the TV-button on the top right in the frontend!
-If this playlist does not work, please check if the base-url of the channels in the playlist is correct and set the `BACKEND_URL` in the `docker-compose.yml` if not.
+## ℹ️ Uso sin Frontend (otro reproductor IPTV)
 
-This playlist contains all your channels and one **CURRENT_CHANNEL**, which forwards the content of the currently played channel.
+Puedes consumir los canales con otro reproductor IPTV mediante la playlist M3U: `http://<tu-dominio>/api/channels/playlist` (también disponible con el ícono de TV en el frontend). Si la playlist falla revisa:
 
-To modify the channel list, you can use the frontend or the [api](#channelcontroller).
+1. Que las URLs base sean accesibles desde el cliente.
+2. Configurar `BACKEND_URL` correctamente en `docker-compose.yml`.
+
+La playlist incluye todos los canales y un canal especial **CURRENT_CHANNEL** que apunta al canal actualmente seleccionado.
+
+Modifica canales vía frontend o API.
 
 > [!NOTE]
-> These options are only tested with VLC media player as other iptv player. Use them at your own risk. Only for the usage together with the frontend will be support provided.
+> Probado principalmente con VLC. Otros reproductores pueden requerir encabezados adicionales.
