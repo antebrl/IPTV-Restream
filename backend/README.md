@@ -31,6 +31,19 @@ Setup a `.env` file or
 equivalent environment variables:
 ```env
 STORAGE_PATH=/mnt/streams/recordings
+# Opcional: forzar transcodificación si algunos canales muestran pantalla negra
+# (convierte todo a H.264 + AAC, útil si origen viene en H.265/HEVC, MPEG-2, AC3, etc.)
+FORCE_TRANSCODE=true
+TRANSCODE_VIDEO_CODEC=libx264
+TRANSCODE_AUDIO_CODEC=aac
+TRANSCODE_PRESET=veryfast
+TRANSCODE_PROFILE=baseline
+TRANSCODE_LEVEL=3.0
+TRANSCODE_AUDIO_RATE=48000
+TRANSCODE_AUDIO_CHANNELS=2
+TRANSCODE_AUDIO_BITRATE=128k
+HLS_SEGMENT_TIME=6
+HLS_LIST_SIZE=5
 ```
 
 The storage directory has to exist. There will be alot of I/O, so it makes sense to mount the storage into ram memory.
@@ -43,6 +56,32 @@ node index.js
 Be aware, that this application is designed for Linux systems!
 
 To use together with the frontend, [run with docker](../README.md#run-with-docker-preferred).
+
+## 🎞️ Transcodificación y Pantalla Negra
+
+Si algunos canales descargan segmentos `.ts` y el manifiesto `.m3u8` pero el reproductor permanece en negro, normalmente la causa es que el códec de video/audio del origen no es soportado por el navegador (por ejemplo HEVC/H.265, MPEG-2 video, audio AC3/E-AC3 sin transcoding, o un stream solo-audio). El modo actual de restream (sin transcodificar) usa `-c copy` y mantiene los códecs originales. Activa `FORCE_TRANSCODE=true` para obligar a FFmpeg a convertir a H.264 (yuv420p, perfil baseline nivel 3.0) + AAC estéreo, asegurando compatibilidad amplia.
+
+Variables clave:
+* `FORCE_TRANSCODE=true` habilita la conversión.
+* Ajusta `TRANSCODE_VIDEO_CODEC`, `TRANSCODE_AUDIO_CODEC` si necesitas otros códecs (requiere soporte FFmpeg).
+* `HLS_SEGMENT_TIME` y `HLS_LIST_SIZE` controlan latencia y longitud del playlist.
+
+Diagnóstico rápido (ejecutar sobre un segmento descargado):
+```bash
+ffprobe -hide_banner -loglevel error -select_streams v:0 -show_entries stream=codec_name -of default=nw=1 "ruta/al/segmento.ts"
+ffprobe -hide_banner -loglevel error -show_streams "ruta/al/segmento.ts"
+```
+Si aparece `hevc`, `mpeg2video` o audio `ac3/eac3`, considera transcodificar.
+
+Con Docker, añade al `docker run`:
+```bash
+-e FORCE_TRANSCODE=true -e TRANSCODE_VIDEO_CODEC=libx264 -e TRANSCODE_AUDIO_CODEC=aac \
+-e TRANSCODE_PRESET=veryfast -e TRANSCODE_PROFILE=baseline -e TRANSCODE_LEVEL=3.0 \
+-e TRANSCODE_AUDIO_RATE=48000 -e TRANSCODE_AUDIO_CHANNELS=2 -e TRANSCODE_AUDIO_BITRATE=128k \
+-e HLS_SEGMENT_TIME=6 -e HLS_LIST_SIZE=5 \
+```
+
+Desactiva `FORCE_TRANSCODE` si tu fuente ya está en H.264 + AAC y quieres menor uso de CPU.
 
 ## 🛠️ Endpoints
 
